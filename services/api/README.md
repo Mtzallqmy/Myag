@@ -5,7 +5,7 @@ Node.js 22+, Fastify 5, TypeScript bundled to JavaScript. Existing business logi
 From the repository root:
 
 ```sh
-npm ci --prefix services/api
+npm ci --include=dev --prefix services/api
 npm run build --prefix services/api
 npm run typecheck --prefix services/api
 npm test --prefix services/api

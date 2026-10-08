@@ -13,7 +13,7 @@ Keep the existing Supabase project `iwzzseqztdxrrqlbazip` and its encryption key
 
 1. Sign in to BotKeep. Select a Node.js application profile and a supported Node runtime **22 or newer** from the versions shown by the panel. The docs do not fix one universal Node version.
 2. In GitHub, select **Mtzallqmy/Myag**, branch `migration/android-native-botkeep`. Use the full repository checkout for building; compiled API reuses root `src/lib` source.
-3. Project root: `services/api`. Install/build: `npm ci && npm run build`. Production command: `npm start`. If the panel lacks a separate build field, use `npm ci && npm run build && npm start` as the initial startup command; verify Console and avoid a deploy that prunes dev dependencies before compiling.
+3. Project root: `services/api`. Install/build: `npm ci --include=dev && npm run build`. Production command: `npm start`. If the panel lacks a separate build field, use `npm ci --include=dev && npm run build && npm start` as the initial startup command; verify Console and avoid a deploy that prunes dev dependencies before compiling.
 4. Populate Environment from `services/api/.env.example`. Use current Supabase URL, publishable key, server key and **unchanged** `PROVIDER_ENCRYPTION_KEY_V1`. Do not copy credentials into GitHub or APK.
 5. API listens on `0.0.0.0` and `SERVER_PORT` (falls back to PORT/3000 locally). Use the Network assigned port, not an invented port.
 6. Configure HTTPS in Domains and set `PUBLIC_API_ORIGIN` to that verified origin. Do not trust forwarded Host headers for OAuth redirect construction. Android does not need CORS; CORS_ORIGINS is only for exact allowed web origins.

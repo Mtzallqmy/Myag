@@ -1,1 +1,38 @@
-{"compilerOptions":{"target":"ES2022","lib":["ES2022","DOM","DOM.Iterable"],"module":"ESNext","moduleResolution":"Bundler","strict":true,"skipLibCheck":true,"noEmit":true,"types":["node"],"paths":{"@/*":["../../src/*"]}},"include":["src/**/*.ts"]}
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "types": [
+      "node"
+    ],
+    "paths": {
+      "@/*": [
+        "../../src/*"
+      ],
+      "@supabase/supabase-js": [
+        "./node_modules/@supabase/supabase-js"
+      ],
+      "zod": [
+        "./node_modules/zod"
+      ],
+      "fflate": [
+        "./node_modules/fflate"
+      ],
+      "diff": [
+        "./node_modules/diff"
+      ]
+    }
+  },
+  "include": [
+    "src/**/*.ts"
+  ]
+}

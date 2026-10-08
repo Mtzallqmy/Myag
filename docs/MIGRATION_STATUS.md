@@ -13,8 +13,9 @@ This is an intermediate implementation, not a completed migration or beta releas
 ## Executed validation
 - Original Vitest suite: 71 tests passed.
 - Original web production build: passed after repair and after extraction.
+- CI initially exposed an optional Ajv peer conflict and shared-source dependency resolution hidden by local root packages. Ajv 8 is now explicitly pinned for the existing form resolver, and API TypeScript resolves shared imports from its own dependencies while keeping them external in the JavaScript bundle.
 - Root TypeScript checking: passed after preserving GhItem export.
-- Standalone API build and TypeScript checking: passed.
+- Standalone API build and TypeScript checking: passed, including a clean service-only installation with no root node_modules.
 - HTTP/API tests + embedded PostgreSQL queue tests: 14 tests passed; no live Supabase acceptance implied.
 - Queue SQL executed against embedded PostgreSQL (PGlite) fixtures: enqueue ownership/idempotency, single claim, stale lease rejection, interrupted recovery, anon/authenticated denied.
 
