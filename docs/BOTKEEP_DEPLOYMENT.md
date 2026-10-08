@@ -5,21 +5,42 @@ Official references checked 2026-10-08:
 - https://botkeep.cloud/hosting/nodejs
 - https://botkeep.cloud/docs/github
 
-## Required existing account/project
+## Prepared Supabase project
 
-Keep the existing Supabase project `iwzzseqztdxrrqlbazip` and its encryption key. Neither currently connected Supabase account exposes it. No migration has been applied remotely. The BotKeep control panel redirects the available browser to sign-in; no service has been created.
+Following the user's authorization to choose an accessible project, the existing project **Moatazahmedalz**, reference `ywtfvgkhrmouqxsocgdq`, was restored and configured. URL: `https://ywtfvgkhrmouqxsocgdq.supabase.co`. Six Wakeel migrations are applied; the seven existing Rateel catalog tables were preserved. RLS is enabled on all 49 public tables. The original inaccessible Wakeel project `iwzzseqztdxrrqlbazip` and its data were not copied or modified. This is an empty Wakeel deployment environment, not a transfer of old accounts/history.
+
+The user will publish the API manually on BotKeep. No BotKeep service or public API domain is claimed here.
 
 ## Deployment procedure
 
 1. Sign in to BotKeep. Select a Node.js application profile and a supported Node runtime **22 or newer** from the versions shown by the panel. The docs do not fix one universal Node version.
 2. In GitHub, select **Mtzallqmy/Myag**, branch `migration/android-native-botkeep`. Use the full repository checkout for building; compiled API reuses root `src/lib` source.
 3. Project root: `services/api`. Install/build: `npm ci --include=dev && npm run build`. Production command: `npm start`. If the panel lacks a separate build field, use `npm ci --include=dev && npm run build && npm start` as the initial startup command; verify Console and avoid a deploy that prunes dev dependencies before compiling.
-4. Populate Environment from `services/api/.env.example`. Use current Supabase URL, publishable key, server key and **unchanged** `PROVIDER_ENCRYPTION_KEY_V1`. Do not copy credentials into GitHub or APK.
+4. Populate Environment using the table below. Get both API keys from this selected project's Supabase dashboard (Settings → API Keys); the server key must belong to the same project. Do not copy credentials into GitHub or APK.
 5. API listens on `0.0.0.0` and `SERVER_PORT` (falls back to PORT/3000 locally). Use the Network assigned port, not an invented port.
 6. Configure HTTPS in Domains and set `PUBLIC_API_ORIGIN` to that verified origin. Do not trust forwarded Host headers for OAuth redirect construction. Android does not need CORS; CORS_ORIGINS is only for exact allowed web origins.
 7. Check `GET /health/live` and `GET /health/ready`. Readiness must be 200 with a working DB; liveness alone is insufficient.
-8. After reviewing/applying the new queue migration to the existing DB and verifying grants/RLS, set `WAKEEL_WORKER_ENABLED=true`. This schedules existing `agent_jobs`; no second task system or extra DB is created.
+8. Queue migration/grants are already applied. Keep `WAKEEL_WORKER_ENABLED=false` for the initial smoke test. Enable it only after reviewing the restart limitation below and accepting interrupted started jobs, or completing checkpoint recovery. This schedules existing `agent_jobs`; no second task system or extra DB is created.
 9. Run real authenticated/provider/GitHub/MCP scenarios before promoting deployment. Check resource usage; ZIP indexing and large projects remain bounded by original limits.
+
+## Environment for manual publishing
+
+| Variable | Value/source |
+| --- | --- |
+| `SUPABASE_URL` | `https://ywtfvgkhrmouqxsocgdq.supabase.co` |
+| `SUPABASE_PUBLISHABLE_KEY` | Publishable key from the selected project |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server secret key or legacy service-role key from the same project; server only |
+| `PROVIDER_ENCRYPTION_KEY_V1` | Generate one secure random key, save it, and keep it unchanged |
+| `PUBLIC_API_ORIGIN` | The actual HTTPS origin assigned in BotKeep Domains |
+| `NODE_ENV` | `production` |
+| `SERVER_PORT` | The port allocated by BotKeep; use its environment-provided value |
+| `WAKEEL_WORKER_ENABLED` | `false` for the initial deployment |
+
+The selected project has no stored Wakeel credentials yet, so a new encryption key is appropriate. To generate it in a trusted terminal, run `node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"`, then paste the result directly into BotKeep Environment. If old encrypted rows are later transferred, their original encryption key is required; a newly generated key cannot decrypt them. Optional runtime and CORS variables may remain empty.
+
+There are currently no Auth users. Create your account through Supabase Dashboard → Authentication → Users → Add user, then use `/v1/auth/login`. Configure email delivery/confirmation before allowing public registration. No administrator role was assigned automatically. Login/refresh and the real API domain still need acceptance after manual publication; SQL RLS tests do not verify Supabase Auth HTTP login.
+
+Private storage `project-archives` is provisioned with a 50 MiB ZIP limit and per-user folder policies. No archives were uploaded. Six internal server-only tables intentionally have RLS without client policies; the Security Advisor reports these as informational notices. Their client grants were checked and denied. See `docs/SUPABASE_DEPLOYMENT.md` for actual verification results.
 
 ## Streaming acceptance
 
