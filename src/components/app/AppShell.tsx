@@ -4,7 +4,7 @@ import { FolderGit2, Home, ListChecks, Menu, MessagesSquare, Boxes, Server, Sett
 import { NotificationBell } from "./NotificationBell";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
-import logo from "@/assets/logo-mark.png";
+import logo from "@/assets/logo-mark.svg";
 
 const primary = [
   { to: "/home", icon: Home, key: "home" },
