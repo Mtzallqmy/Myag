@@ -30,7 +30,7 @@ const adapters: Record<ProviderType, Adapter> = {
     ...openAiAdapter,
     headers: (token) => ({
       ...openAiAdapter.headers(token),
-      "HTTP-Referer": "https://lovable.app",
+      ...(process.env["PUBLIC_API_ORIGIN"]?.startsWith("https://") ? {"HTTP-Referer": process.env["PUBLIC_API_ORIGIN"]} : {}),
       "X-Title": "Wakeel Code Agent",
     }),
   },

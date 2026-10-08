@@ -31,7 +31,7 @@ export const ar2 = {
     title: "المهام", empty: "لا توجد مهام بعد. ابدأ مهمة من صفحة أي مشروع.", pendingApprovals: "بانتظار موافقتك",
     status: {
       PLANNING: "جاري التخطيط", READING: "جاري القراءة", EDITING: "جاري التعديل", AWAITING_APPROVAL: "بانتظار الموافقة",
-      TESTING: "جاري الاختبار", VERIFYING: "جاري التحقق", COMPLETED: "مكتمل", FAILED: "فشل", CANCELLED: "ملغي",
+      TESTING: "جاري الاختبار", VERIFYING: "جاري التحقق", COMPLETED: "مكتمل", FAILED: "فشل", CANCELLED: "ملغي", APPLIED_UNVERIFIED: "طُبّق ولم يُتحقق منه", VALIDATION_FAILED: "فشل التحقق", INTERRUPTED: "توقفت المهمة وتحتاج مراجعة", QUEUED: "في الانتظار",
     } as Record<string, string>,
     steps: "الخطوات", plan: "الخطة", result: "النتيجة", cancel: "إلغاء المهمة", diff: "الفرق", validation: "التحقق",
     stepTypes: { PLAN: "تخطيط", READ: "قراءة السياق", ANSWER: "إجابة", PROPOSE: "اقتراح تعديل", APPLY: "تطبيق" } as Record<string, string>,
@@ -124,7 +124,7 @@ export const en2: Dict2 = {
     title: "Tasks", empty: "No tasks yet. Start one from any project page.", pendingApprovals: "Waiting for your approval",
     status: {
       PLANNING: "Planning", READING: "Reading", EDITING: "Editing", AWAITING_APPROVAL: "Awaiting approval",
-      TESTING: "Testing", VERIFYING: "Verifying", COMPLETED: "Completed", FAILED: "Failed", CANCELLED: "Cancelled",
+      TESTING: "Testing", VERIFYING: "Verifying", COMPLETED: "Completed", FAILED: "Failed", CANCELLED: "Cancelled", APPLIED_UNVERIFIED: "Applied, unverified", VALIDATION_FAILED: "Validation failed", INTERRUPTED: "Interrupted; review required", QUEUED: "Queued",
     },
     steps: "Steps", plan: "Plan", result: "Result", cancel: "Cancel task", diff: "Diff", validation: "Validation",
     stepTypes: { PLAN: "Plan", READ: "Read context", ANSWER: "Answer", PROPOSE: "Propose change", APPLY: "Apply" },

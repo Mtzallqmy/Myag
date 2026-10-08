@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
 import { useI18n } from "@/lib/i18n";
-import logo from "@/assets/logo-mark.png";
+import logo from "@/assets/logo-mark.svg";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({

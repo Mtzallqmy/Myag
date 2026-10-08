@@ -34,7 +34,7 @@ export const Route = createFileRoute("/_authenticated/tasks/$id")({
   component: TaskPage,
 });
 
-const FINAL = ["COMPLETED", "FAILED", "CANCELLED"];
+const FINAL = ["COMPLETED", "FAILED", "CANCELLED", "APPLIED_UNVERIFIED", "VALIDATION_FAILED", "INTERRUPTED"];
 
 function TaskPage() {
   const { id } = Route.useParams();
