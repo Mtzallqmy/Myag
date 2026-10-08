@@ -1,0 +1,105 @@
+# Builds an Android APK (Capacitor shell) that loads the published Wakeel web app.
+# Runs on GitHub — not inside Lovable. Output: app-release.apk (signed if keystore secrets exist)
+# and app-debug.apk, uploaded as workflow artifacts and attached to a GitHub Release on tags.
+# minSdk 26 = Android 8.0+. A WebView shell has no native .so libraries, so the APK runs on
+# arm64-v8a (64-bit) and every other ABI.
+name: Android APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      app_url:
+        description: "Published app URL (https://...)"
+        required: false
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      APP_URL: ${{ github.event.inputs.app_url || vars.APP_URL }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check APP_URL
+        run: |
+          if [[ ! "$APP_URL" =~ ^https:// ]]; then
+            echo "::error::Set repository variable APP_URL (Settings → Secrets and variables → Actions → Variables) or pass app_url."
+            exit 1
+          fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Prepare Capacitor shell (isolated from the web app)
+        run: |
+          mkdir -p native && cd native
+          npm init -y >/dev/null
+          npm i @capacitor/core@7 @capacitor/cli@7 @capacitor/android@7 @capacitor/app@7 @capacitor/browser@7
+          mkdir -p www
+          cp ../native-shell/index.html www/index.html
+          node -e '
+            const fs=require("fs");
+            const c=JSON.parse(fs.readFileSync("../capacitor.config.json","utf8"));
+            c.webDir="www";
+            c.server={...(c.server||{}),url:process.env.APP_URL,cleartext:false};
+            fs.writeFileSync("capacitor.config.json",JSON.stringify(c,null,2));
+          '
+          npx cap add android
+          # Android 8.0+ (API 26), target the latest SDK Capacitor 7 supports
+          sed -i 's/minSdkVersion = .*/minSdkVersion = 26/' android/variables.gradle
+          npx cap sync android
+
+      - name: Build debug APK
+        working-directory: native/android
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Decode keystore (optional)
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then echo "$KEYSTORE_BASE64" | base64 -d > native/android/app/release.keystore; fi
+
+      - name: Build release APK
+        working-directory: native/android
+        env:
+          KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          ./gradlew assembleRelease --no-daemon
+          OUT=app/build/outputs/apk/release
+          if [ -f app/release.keystore ]; then
+            BT=$(ls -d $ANDROID_HOME/build-tools/* | sort -V | tail -1)
+            $BT/zipalign -p 4 $OUT/app-release-unsigned.apk $OUT/aligned.apk
+            $BT/apksigner sign --ks app/release.keystore --ks-pass env:KS_PASS --ks-key-alias "$KEY_ALIAS" --key-pass env:KEY_PASS --out $OUT/app-release.apk $OUT/aligned.apk
+          else
+            echo "::warning::No keystore secrets — release APK is unsigned. Install the debug APK for testing."
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wakeel-apk
+          path: |
+            native/android/app/build/outputs/apk/debug/*.apk
+            native/android/app/build/outputs/apk/release/*.apk
+
+      - name: Attach to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            native/android/app/build/outputs/apk/debug/app-debug.apk
+            native/android/app/build/outputs/apk/release/app-release*.apk

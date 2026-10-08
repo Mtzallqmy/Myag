@@ -1,0 +1,13 @@
+{
+  "appId": "app.wakeel.client",
+  "appName": "Wakeel",
+  "webDir": "native-shell",
+  "server": {
+    "androidScheme": "https",
+    "cleartext": false
+  },
+  "android": {
+    "allowMixedContent": false,
+    "webContentsDebuggingEnabled": false
+  }
+}

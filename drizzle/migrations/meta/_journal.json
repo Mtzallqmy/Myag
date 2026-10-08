@@ -1,0 +1,34 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1791415724490,
+      "tag": "0000_migration",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791417102181,
+      "tag": "0001_stage2_projects_agents_github_mcp",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791418336438,
+      "tag": "0002_stage3_admin_memory_notifications",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1791418967927,
+      "tag": "0003_drop_unused_has_role",
+      "breakpoints": true
+    }
+  ]
+}
