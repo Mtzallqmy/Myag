@@ -16,7 +16,8 @@ This is an intermediate implementation, not a completed migration or beta releas
 - CI initially exposed an optional Ajv peer conflict and shared-source dependency resolution hidden by local root packages. Ajv 8 is now explicitly pinned for the existing form resolver, and API TypeScript resolves shared imports from its own dependencies while keeping them external in the JavaScript bundle.
 - Root TypeScript checking: passed after preserving GhItem export.
 - Standalone API build and TypeScript checking: passed, including a clean service-only installation with no root node_modules.
-- HTTP/API tests + embedded PostgreSQL queue tests: 14 tests passed; no live Supabase acceptance implied.
+- HTTP/API tests + embedded PostgreSQL tests: 15 tests passed; no live Supabase acceptance implied.
+- All five original/queue migrations also executed together on a fresh embedded PostgreSQL schema: 42 tables, all with RLS enabled. User bootstrap, cross-user conversation isolation, forged ownership rejection, and denial of client access to secret/queue tables passed. Supabase system objects are local fixtures in this test.
 - Queue SQL executed against embedded PostgreSQL (PGlite) fixtures: enqueue ownership/idempotency, single claim, stale lease rejection, interrupted recovery, anon/authenticated denied.
 
 ## Not completed
@@ -29,8 +30,8 @@ This is an intermediate implementation, not a completed migration or beta releas
 - ARM64 device tests, signed APK, beta release. None exists; existing Capacitor workflow remains legacy reference and must not be presented as native output.
 
 ## Concrete blockers / next gate
-- Supabase config targets `iwzzseqztdxrrqlbazip`; connected accounts expose only other projects. Connect the owning account/project or configure that project's existing secrets in BotKeep Environment.
+- Supabase config targets `iwzzseqztdxrrqlbazip`; connected accounts expose only other projects. The user subsequently authorized using any accessible project. `Moatazalq` (`ajhxfcdhuouumivmmerk`) reports healthy but table inspection timed out twice. `Fadhkur` (`ttvasynaxkkcwrmvlorg`) has another application's tables, including a conflicting `audit_logs`, and was left unchanged. Restore of the existing inactive `Moatazahmedalz` (`ywtfvgkhrmouqxsocgdq`) was accepted; its latest status is COMING_UP. Table/migration inspection must succeed before selecting it or applying application SQL. Original data has not been copied or modified.
 - BotKeep browser is at sign-in. A signed-in control panel is required for actual deployment.
 - Keep the existing provider encryption key. Without it encrypted stored credentials cannot be migrated by substituting a new key.
 
-No replacement DB was created. No main-branch mutation, force push, deployment claim, or APK claim.
+No replacement DB was created. No application migration was applied to a live DB. No main-branch mutation, force push, deployment claim, or APK claim.
