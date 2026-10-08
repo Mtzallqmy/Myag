@@ -1,4 +1,4 @@
-# BotKeep deployment — prepared, not deployed
+# BotKeep deployment — installation in progress
 
 Official references checked 2026-10-08:
 - https://botkeep.cloud/docs/hosting
@@ -9,13 +9,14 @@ Official references checked 2026-10-08:
 
 Following the user's authorization to choose an accessible project, the existing project **Moatazahmedalz**, reference `ywtfvgkhrmouqxsocgdq`, was restored and configured. URL: `https://ywtfvgkhrmouqxsocgdq.supabase.co`. Six Wakeel migrations are applied; the seven existing Rateel catalog tables were preserved. RLS is enabled on all 49 public tables. The original inaccessible Wakeel project `iwzzseqztdxrrqlbazip` and its data were not copied or modified. This is an empty Wakeel deployment environment, not a transfer of old accounts/history.
 
-The user will publish the API manually on BotKeep. No BotKeep service or public API domain is claimed here.
+A service named `wakeel-api` was created in BotKeep on 2026-10-08, using Node.js 22 and the migration branch. Installation has not yet completed; no running API or public API domain is claimed here. The panel rejected environment saving with `Files are unavailable until installation is complete`.
 
 ## Deployment procedure
 
 1. Sign in to BotKeep. Select a Node.js application profile and a supported Node runtime **22 or newer** from the versions shown by the panel. The docs do not fix one universal Node version.
 2. In GitHub, select **Mtzallqmy/Myag**, branch `migration/android-native-botkeep`. Use the full repository checkout for building; compiled API reuses root `src/lib` source.
 3. Project root: `services/api`. Install/build: `npm ci --include=dev && npm run build`. Production command: `npm start`. If the panel lacks a separate build field, use `npm ci --include=dev && npm run build && npm start` as the initial startup command; verify Console and avoid a deploy that prunes dev dependencies before compiling.
+   BotKeep's initial checkout is at the repository root: use `cd services/api && npm ci --include=dev && npm run build && npm start` when no working-directory setting is available. BotKeep writes Environment into the checkout-root `.env`, rather than necessarily exporting process variables. `npm start` loads both the repository-root and API-local `.env` using Node's native loader (Node 22.9+); already exported process variables take precedence. No shell evaluation of secret values is used.
 4. Populate Environment using the table below. Get both API keys from this selected project's Supabase dashboard (Settings → API Keys); the server key must belong to the same project. Do not copy credentials into GitHub or APK.
 5. API listens on `0.0.0.0` and `SERVER_PORT` (falls back to PORT/3000 locally). Use the Network assigned port, not an invented port.
 6. Configure HTTPS in Domains and set `PUBLIC_API_ORIGIN` to that verified origin. Do not trust forwarded Host headers for OAuth redirect construction. Android does not need CORS; CORS_ORIGINS is only for exact allowed web origins.
