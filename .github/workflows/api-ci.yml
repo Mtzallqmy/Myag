@@ -1,0 +1,31 @@
+name: Standalone API checks
+on:
+  pull_request:
+  push:
+    branches: [migration/android-native-botkeep]
+permissions:
+  contents: read
+jobs:
+  api:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: services/api/package-lock.json
+      - run: npm ci
+        working-directory: services/api
+      - run: npm run build && npm run typecheck && npm test
+        working-directory: services/api
+  legacy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx tsc --noEmit && npm test && npm run build

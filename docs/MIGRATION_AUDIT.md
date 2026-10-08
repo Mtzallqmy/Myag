@@ -10,7 +10,7 @@ Baseline: `7f16619` (main), reviewed 2026-10-08. This document records source ev
 - Applying patches marks a job COMPLETED even when runtime validation is UNAVAILABLE/FAILED, and runtime workspace setup/sync is missing. Must separate applied from verified.
 - Most database writes ignore errors. End-to-end success cannot be asserted before checking persisted effects.
 - `supabase/config.toml` identifies existing project `iwzzseqztdxrrqlbazip`. Neither connected Supabase account lists this project. No other project's DB will be modified.
-- No lockfile at baseline. Dependency installation and web verification are in progress.
+- No lockfile at baseline. npm lockfiles now exist; 71 original tests and production build passed.
 - Runtime is only an HMAC adapter; no isolated execution service is deployed here.
 - Existing GitHub integration uses a fine-grained PAT, not OAuth account linking.
 - No signing keys, device/emulator or BotKeep deployment credentials are in the checkout.
@@ -27,47 +27,47 @@ Baseline: `7f16619` (main), reviewed 2026-10-08. This document records source ev
 | Notifications/history/settings | `queries3.ts`, routes | Native screens + local settings | Pending | Session-scoped storage, offline/reconnect |
 | Jobs/restart/leases | `agent.functions.ts`, agent tables | PostgreSQL worker | Missing at baseline | Restart, fencing, duplicate delivery, cancellation |
 | Runtime isolation | `server/runtime.server.ts` | External adapter retained | External unavailable | Configure isolated runtime; no fake pass |
-| createAgentJob | `src/lib/agent.functions.ts` | `POST /v1/operations/createAgentJob` | Existing code; migration pending | Auth, validator, ownership/RBAC, real external integration |
-| runAgentJob | `src/lib/agent.functions.ts` | `POST /v1/operations/runAgentJob` | Existing code; migration pending | Auth, validator, ownership/RBAC, real external integration |
-| cancelAgentJob | `src/lib/agent.functions.ts` | `POST /v1/operations/cancelAgentJob` | Existing code; migration pending | Auth, validator, ownership/RBAC, real external integration |
-| requestGitAction | `src/lib/agent.functions.ts` | `POST /v1/operations/requestGitAction` | Existing code; migration pending | Auth, validator, ownership/RBAC, real external integration |
-| decideApproval | `src/lib/agent.functions.ts` | `POST /v1/operations/decideApproval` | Existing code; migration pending | Auth, validator, ownership/RBAC, real external integration |
-| getRuntimeStatus | `src/lib/agent.functions.ts` | `GET /v1/operations/getRuntimeStatus` | Existing code; migration pending | Auth, validator, ownership/RBAC, real external integration |
-| addMcpServer | `src/lib/mcp.functions.ts` | `POST /v1/operations/addMcpServer` | Existing code; migration pending | Auth, validator, ownership/RBAC, real external integration |
-| refreshMcpServer | `src/lib/mcp.functions.ts` | `POST /v1/operations/refreshMcpServer` | Existing code; migration pending | Auth, validator, ownership/RBAC, real external integration |
-| startMcpOAuth | `src/lib/mcp.functions.ts` | `POST /v1/operations/startMcpOAuth` | Existing code; migration pending | Auth, validator, ownership/RBAC, real external integration |
-| setMcpToolState | `src/lib/mcp.functions.ts` | `POST /v1/operations/setMcpToolState` | Existing code; migration pending | Auth, validator, ownership/RBAC, real external integration |
-| callMcpTool | `src/lib/mcp.functions.ts` | `POST /v1/operations/callMcpTool` | Existing code; migration pending | Auth, validator, ownership/RBAC, real external integration |
-| createProvider | `src/lib/providers.functions.ts` | `POST /v1/operations/createProvider` | Existing code; migration pending | Auth, validator, ownership/RBAC, real external integration |
-| updateProvider | `src/lib/providers.functions.ts` | `POST /v1/operations/updateProvider` | Existing code; migration pending | Auth, validator, ownership/RBAC, real external integration |
-| deleteProvider | `src/lib/providers.functions.ts` | `POST /v1/operations/deleteProvider` | Existing code; migration pending | Auth, validator, ownership/RBAC, real external integration |
-| testProvider | `src/lib/providers.functions.ts` | `POST /v1/operations/testProvider` | Existing code; migration pending | Auth, validator, ownership/RBAC, real external integration |
-| testModel | `src/lib/providers.functions.ts` | `POST /v1/operations/testModel` | Existing code; migration pending | Auth, validator, ownership/RBAC, real external integration |
-| getMyAccess | `src/lib/stage3.functions.ts` | `GET /v1/operations/getMyAccess` | Existing code; migration pending | Auth, validator, ownership/RBAC, real external integration |
-| claimFirstAdmin | `src/lib/stage3.functions.ts` | `POST /v1/operations/claimFirstAdmin` | Existing code; migration pending | Auth, validator, ownership/RBAC, real external integration |
-| addMemory | `src/lib/stage3.functions.ts` | `POST /v1/operations/addMemory` | Existing code; migration pending | Auth, validator, ownership/RBAC, real external integration |
-| globalSearch | `src/lib/stage3.functions.ts` | `POST /v1/operations/globalSearch` | Existing code; migration pending | Auth, validator, ownership/RBAC, real external integration |
-| getUsage | `src/lib/stage3.functions.ts` | `POST /v1/operations/getUsage` | Existing code; migration pending | Auth, validator, ownership/RBAC, real external integration |
-| adminOverview | `src/lib/stage3.functions.ts` | `GET /v1/operations/adminOverview` | Existing code; migration pending | Auth, validator, ownership/RBAC, real external integration |
-| adminList | `src/lib/stage3.functions.ts` | `POST /v1/operations/adminList` | Existing code; migration pending | Auth, validator, ownership/RBAC, real external integration |
-| adminAudit | `src/lib/stage3.functions.ts` | `POST /v1/operations/adminAudit` | Existing code; migration pending | Auth, validator, ownership/RBAC, real external integration |
-| adminFlags | `src/lib/stage3.functions.ts` | `GET /v1/operations/adminFlags` | Existing code; migration pending | Auth, validator, ownership/RBAC, real external integration |
-| adminSetFlag | `src/lib/stage3.functions.ts` | `POST /v1/operations/adminSetFlag` | Existing code; migration pending | Auth, validator, ownership/RBAC, real external integration |
-| adminSetKillSwitch | `src/lib/stage3.functions.ts` | `POST /v1/operations/adminSetKillSwitch` | Existing code; migration pending | Auth, validator, ownership/RBAC, real external integration |
-| adminSetPlan | `src/lib/stage3.functions.ts` | `POST /v1/operations/adminSetPlan` | Existing code; migration pending | Auth, validator, ownership/RBAC, real external integration |
-| adminSetRole | `src/lib/stage3.functions.ts` | `POST /v1/operations/adminSetRole` | Existing code; migration pending | Auth, validator, ownership/RBAC, real external integration |
-| adminHealth | `src/lib/stage3.functions.ts` | `GET /v1/operations/adminHealth` | Existing code; migration pending | Auth, validator, ownership/RBAC, real external integration |
-| createProject | `src/lib/projects.functions.ts` | `POST /v1/operations/createProject` | Existing code; migration pending | Auth, validator, ownership/RBAC, real external integration |
-| ingestProjectBatch | `src/lib/projects.functions.ts` | `POST /v1/operations/ingestProjectBatch` | Existing code; migration pending | Auth, validator, ownership/RBAC, real external integration |
-| finalizeProjectIngest | `src/lib/projects.functions.ts` | `POST /v1/operations/finalizeProjectIngest` | Existing code; migration pending | Auth, validator, ownership/RBAC, real external integration |
-| searchProject | `src/lib/projects.functions.ts` | `POST /v1/operations/searchProject` | Existing code; migration pending | Auth, validator, ownership/RBAC, real external integration |
-| readFile | `src/lib/projects.functions.ts` | `POST /v1/operations/readFile` | Existing code; migration pending | Auth, validator, ownership/RBAC, real external integration |
-| askProject | `src/lib/projects.functions.ts` | `POST /v1/operations/askProject` | Existing code; migration pending | Auth, validator, ownership/RBAC, real external integration |
-| connectGithub | `src/lib/github.functions.ts` | `POST /v1/operations/connectGithub` | Existing code; migration pending | Auth, validator, ownership/RBAC, real external integration |
-| refreshGithub | `src/lib/github.functions.ts` | `POST /v1/operations/refreshGithub` | Existing code; migration pending | Auth, validator, ownership/RBAC, real external integration |
-| disconnectGithub | `src/lib/github.functions.ts` | `POST /v1/operations/disconnectGithub` | Existing code; migration pending | Auth, validator, ownership/RBAC, real external integration |
-| listRepoItems | `src/lib/github.functions.ts` | `POST /v1/operations/listRepoItems` | Existing code; migration pending | Auth, validator, ownership/RBAC, real external integration |
-| importRepository | `src/lib/github.functions.ts` | `POST /v1/operations/importRepository` | Existing code; migration pending | Auth, validator, ownership/RBAC, real external integration |
+| createAgentJob | `src/lib/agent.functions.ts` | `POST /v1/operations/createAgentJob` | HTTP transport extracted; live acceptance pending | Auth, validator, ownership/RBAC, real external integration |
+| runAgentJob | `src/lib/agent.functions.ts` | `POST /v1/operations/runAgentJob` | HTTP transport extracted; live acceptance pending | Auth, validator, ownership/RBAC, real external integration |
+| cancelAgentJob | `src/lib/agent.functions.ts` | `POST /v1/operations/cancelAgentJob` | HTTP transport extracted; live acceptance pending | Auth, validator, ownership/RBAC, real external integration |
+| requestGitAction | `src/lib/agent.functions.ts` | `POST /v1/operations/requestGitAction` | HTTP transport extracted; live acceptance pending | Auth, validator, ownership/RBAC, real external integration |
+| decideApproval | `src/lib/agent.functions.ts` | `POST /v1/operations/decideApproval` | HTTP transport extracted; live acceptance pending | Auth, validator, ownership/RBAC, real external integration |
+| getRuntimeStatus | `src/lib/agent.functions.ts` | `GET /v1/operations/getRuntimeStatus` | HTTP transport extracted; live acceptance pending | Auth, validator, ownership/RBAC, real external integration |
+| addMcpServer | `src/lib/mcp.functions.ts` | `POST /v1/operations/addMcpServer` | HTTP transport extracted; live acceptance pending | Auth, validator, ownership/RBAC, real external integration |
+| refreshMcpServer | `src/lib/mcp.functions.ts` | `POST /v1/operations/refreshMcpServer` | HTTP transport extracted; live acceptance pending | Auth, validator, ownership/RBAC, real external integration |
+| startMcpOAuth | `src/lib/mcp.functions.ts` | `POST /v1/operations/startMcpOAuth` | HTTP transport extracted; live acceptance pending | Auth, validator, ownership/RBAC, real external integration |
+| setMcpToolState | `src/lib/mcp.functions.ts` | `POST /v1/operations/setMcpToolState` | HTTP transport extracted; live acceptance pending | Auth, validator, ownership/RBAC, real external integration |
+| callMcpTool | `src/lib/mcp.functions.ts` | `POST /v1/operations/callMcpTool` | HTTP transport extracted; live acceptance pending | Auth, validator, ownership/RBAC, real external integration |
+| createProvider | `src/lib/providers.functions.ts` | `POST /v1/operations/createProvider` | HTTP transport extracted; live acceptance pending | Auth, validator, ownership/RBAC, real external integration |
+| updateProvider | `src/lib/providers.functions.ts` | `POST /v1/operations/updateProvider` | HTTP transport extracted; live acceptance pending | Auth, validator, ownership/RBAC, real external integration |
+| deleteProvider | `src/lib/providers.functions.ts` | `POST /v1/operations/deleteProvider` | HTTP transport extracted; live acceptance pending | Auth, validator, ownership/RBAC, real external integration |
+| testProvider | `src/lib/providers.functions.ts` | `POST /v1/operations/testProvider` | HTTP transport extracted; live acceptance pending | Auth, validator, ownership/RBAC, real external integration |
+| testModel | `src/lib/providers.functions.ts` | `POST /v1/operations/testModel` | HTTP transport extracted; live acceptance pending | Auth, validator, ownership/RBAC, real external integration |
+| getMyAccess | `src/lib/stage3.functions.ts` | `GET /v1/operations/getMyAccess` | HTTP transport extracted; live acceptance pending | Auth, validator, ownership/RBAC, real external integration |
+| claimFirstAdmin | `src/lib/stage3.functions.ts` | `POST /v1/operations/claimFirstAdmin` | HTTP transport extracted; live acceptance pending | Auth, validator, ownership/RBAC, real external integration |
+| addMemory | `src/lib/stage3.functions.ts` | `POST /v1/operations/addMemory` | HTTP transport extracted; live acceptance pending | Auth, validator, ownership/RBAC, real external integration |
+| globalSearch | `src/lib/stage3.functions.ts` | `POST /v1/operations/globalSearch` | HTTP transport extracted; live acceptance pending | Auth, validator, ownership/RBAC, real external integration |
+| getUsage | `src/lib/stage3.functions.ts` | `POST /v1/operations/getUsage` | HTTP transport extracted; live acceptance pending | Auth, validator, ownership/RBAC, real external integration |
+| adminOverview | `src/lib/stage3.functions.ts` | `GET /v1/operations/adminOverview` | HTTP transport extracted; live acceptance pending | Auth, validator, ownership/RBAC, real external integration |
+| adminList | `src/lib/stage3.functions.ts` | `POST /v1/operations/adminList` | HTTP transport extracted; live acceptance pending | Auth, validator, ownership/RBAC, real external integration |
+| adminAudit | `src/lib/stage3.functions.ts` | `POST /v1/operations/adminAudit` | HTTP transport extracted; live acceptance pending | Auth, validator, ownership/RBAC, real external integration |
+| adminFlags | `src/lib/stage3.functions.ts` | `GET /v1/operations/adminFlags` | HTTP transport extracted; live acceptance pending | Auth, validator, ownership/RBAC, real external integration |
+| adminSetFlag | `src/lib/stage3.functions.ts` | `POST /v1/operations/adminSetFlag` | HTTP transport extracted; live acceptance pending | Auth, validator, ownership/RBAC, real external integration |
+| adminSetKillSwitch | `src/lib/stage3.functions.ts` | `POST /v1/operations/adminSetKillSwitch` | HTTP transport extracted; live acceptance pending | Auth, validator, ownership/RBAC, real external integration |
+| adminSetPlan | `src/lib/stage3.functions.ts` | `POST /v1/operations/adminSetPlan` | HTTP transport extracted; live acceptance pending | Auth, validator, ownership/RBAC, real external integration |
+| adminSetRole | `src/lib/stage3.functions.ts` | `POST /v1/operations/adminSetRole` | HTTP transport extracted; live acceptance pending | Auth, validator, ownership/RBAC, real external integration |
+| adminHealth | `src/lib/stage3.functions.ts` | `GET /v1/operations/adminHealth` | HTTP transport extracted; live acceptance pending | Auth, validator, ownership/RBAC, real external integration |
+| createProject | `src/lib/projects.functions.ts` | `POST /v1/operations/createProject` | HTTP transport extracted; live acceptance pending | Auth, validator, ownership/RBAC, real external integration |
+| ingestProjectBatch | `src/lib/projects.functions.ts` | `POST /v1/operations/ingestProjectBatch` | HTTP transport extracted; live acceptance pending | Auth, validator, ownership/RBAC, real external integration |
+| finalizeProjectIngest | `src/lib/projects.functions.ts` | `POST /v1/operations/finalizeProjectIngest` | HTTP transport extracted; live acceptance pending | Auth, validator, ownership/RBAC, real external integration |
+| searchProject | `src/lib/projects.functions.ts` | `POST /v1/operations/searchProject` | HTTP transport extracted; live acceptance pending | Auth, validator, ownership/RBAC, real external integration |
+| readFile | `src/lib/projects.functions.ts` | `POST /v1/operations/readFile` | HTTP transport extracted; live acceptance pending | Auth, validator, ownership/RBAC, real external integration |
+| askProject | `src/lib/projects.functions.ts` | `POST /v1/operations/askProject` | HTTP transport extracted; live acceptance pending | Auth, validator, ownership/RBAC, real external integration |
+| connectGithub | `src/lib/github.functions.ts` | `POST /v1/operations/connectGithub` | HTTP transport extracted; live acceptance pending | Auth, validator, ownership/RBAC, real external integration |
+| refreshGithub | `src/lib/github.functions.ts` | `POST /v1/operations/refreshGithub` | HTTP transport extracted; live acceptance pending | Auth, validator, ownership/RBAC, real external integration |
+| disconnectGithub | `src/lib/github.functions.ts` | `POST /v1/operations/disconnectGithub` | HTTP transport extracted; live acceptance pending | Auth, validator, ownership/RBAC, real external integration |
+| listRepoItems | `src/lib/github.functions.ts` | `POST /v1/operations/listRepoItems` | HTTP transport extracted; live acceptance pending | Auth, validator, ownership/RBAC, real external integration |
+| importRepository | `src/lib/github.functions.ts` | `POST /v1/operations/importRepository` | HTTP transport extracted; live acceptance pending | Auth, validator, ownership/RBAC, real external integration |
 
 ## Gates
 1. Audit/contracts committed and pushed before backend work.

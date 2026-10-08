@@ -1,3 +1,5 @@
+> Native migration is in progress on `migration/android-native-botkeep`. The PWA is retained. A standalone API is under `services/api`; no Native APK is available yet. See [migration status](docs/MIGRATION_STATUS.md), [audit](docs/MIGRATION_AUDIT.md), [API contract](docs/API_CONTRACT.md) and [BotKeep setup](docs/BOTKEEP_DEPLOYMENT.md).
+
 # Wakeel (وكيل) — AI Coding Agent Platform · Stage 1
 
 Mobile-first, Arabic-first (RTL) installable web app for chatting with AI models from your own OpenAI-compatible providers.
