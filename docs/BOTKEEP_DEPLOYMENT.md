@@ -1,4 +1,4 @@
-# BotKeep deployment — installation in progress
+# BotKeep deployment — API smoke test passed
 
 Official references checked 2026-10-08:
 - https://botkeep.cloud/docs/hosting
@@ -9,7 +9,25 @@ Official references checked 2026-10-08:
 
 Following the user's authorization to choose an accessible project, the existing project **Moatazahmedalz**, reference `ywtfvgkhrmouqxsocgdq`, was restored and configured. URL: `https://ywtfvgkhrmouqxsocgdq.supabase.co`. Six Wakeel migrations are applied; the seven existing Rateel catalog tables were preserved. RLS is enabled on all 49 public tables. The original inaccessible Wakeel project `iwzzseqztdxrrqlbazip` and its data were not copied or modified. This is an empty Wakeel deployment environment, not a transfer of old accounts/history.
 
-A service named `wakeel-api` was created in BotKeep on 2026-10-08, using Node.js 22 and the migration branch. Installation has not yet completed; no running API or public API domain is claimed here. The panel rejected environment saving with `Files are unavailable until installation is complete`.
+A service named `wakeel-api` was created in BotKeep on 2026-10-08. On 2026-10-09 it reached **Running**, using Node.js 22.23.2, port `33914`, and HTTPS origin `https://wvcvrb.bot-keep.xyz`. All eight required environment values were saved; the supplied service-role key is stored as a hidden secret and is not recorded in this repository.
+
+The GitHub import repeatedly paused with `Source staging was interrupted`; it was cancelled through the panel's restore operation, which left existing application files intact. Those files already included the standalone API, but their old `npm start` ran `node dist/index.js` and crashed with `MISSING_SUPABASE_URL`. The exact `services/api/package.json` from branch commit `4ce026c` was uploaded to that directory with replacement enabled. The next build/start loaded the root environment file and listened successfully on the assigned port. A successful full GitHub sync/commit match has **not** been confirmed; the file upload is the recorded deployment workaround.
+
+## Executed verification — 2026-10-09
+
+| Check | Actual result |
+| --- | --- |
+| API build and TypeScript check, local branch `4ce026c` | Passed |
+| Backend tests, local branch `4ce026c` | 15 passed, 0 failed |
+| Supabase project status | `ACTIVE_HEALTHY` |
+| Public tables / tables with RLS, live SQL | 49 / 49 |
+| HTTPS `GET /health/live` | 200, `{"status":"ok"}` |
+| HTTPS `GET /health/ready`, real database query | 200, `{"status":"ready"}` |
+| HTTPS protected conversations read without Authorization | 401, `UNAUTHORIZED` |
+| Same protected read with an invalid test bearer token | 401, `UNAUTHORIZED` |
+| BotKeep runtime | Running; corrected native environment-loader command visible in Console |
+
+This verifies backend startup, HTTPS routing, database connectivity, and rejection of unauthenticated requests. It does not verify a real user login, AI response, proxy streaming, GitHub/MCP actions, worker restart recovery, or Android functionality. `WAKEEL_WORKER_ENABLED=false` remains configured.
 
 ## Deployment procedure
 
@@ -39,7 +57,7 @@ A service named `wakeel-api` was created in BotKeep on 2026-10-08, using Node.js
 
 The selected project has no stored Wakeel credentials yet, so a new encryption key is appropriate. To generate it in a trusted terminal, run `node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"`, then paste the result directly into BotKeep Environment. If old encrypted rows are later transferred, their original encryption key is required; a newly generated key cannot decrypt them. Optional runtime and CORS variables may remain empty.
 
-There are currently no Auth users. Create your account through Supabase Dashboard → Authentication → Users → Add user, then use `/v1/auth/login`. Configure email delivery/confirmation before allowing public registration. No administrator role was assigned automatically. Login/refresh and the real API domain still need acceptance after manual publication; SQL RLS tests do not verify Supabase Auth HTTP login.
+No Auth user was provisioned during this deployment. Create your account through Supabase Dashboard → Authentication → Users → Add user, then use `/v1/auth/login`. Configure email delivery/confirmation before allowing public registration. No administrator role was assigned automatically. Real login/refresh still need acceptance; SQL RLS tests and successful readiness do not verify Supabase Auth HTTP login.
 
 Private storage `project-archives` is provisioned with a 50 MiB ZIP limit and per-user folder policies. No archives were uploaded. Six internal server-only tables intentionally have RLS without client policies; the Security Advisor reports these as informational notices. Their client grants were checked and denied. See `docs/SUPABASE_DEPLOYMENT.md` for actual verification results.
 
