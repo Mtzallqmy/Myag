@@ -33,9 +33,10 @@ class WakeelViewModel @Inject constructor(private val repository: WakeelReposito
     }
     private fun failure(e: Exception) {
         val code = when (e) { is ApiFailure -> e.code; is HttpException -> "HTTP_${e.code()}"; else -> "NETWORK_UNAVAILABLE" }
-        mutable.update { it.copy(error = code, authenticated = if (code == "SESSION_EXPIRED" || code == "HTTP_401") false else it.authenticated) }
+        if (code == "SESSION_EXPIRED" || code == "HTTP_401") mutable.update { UiState(restoring = false, dark = it.dark, english = it.english, error = code) }
+        else mutable.update { it.copy(error = code) }
     }
-    fun login(email: String, password: String) = work { repository.login(email, password); mutable.update { it.copy(authenticated = true) } }
+    fun login(email: String, password: String) = work { repository.login(email, password); mutable.update { UiState(restoring = false, authenticated = true, busy = true, dark = it.dark, english = it.english) } }
     fun signup(email: String, password: String) = work { repository.signup(email, password); mutable.update { it.copy(notice = "تحقق من بريدك لتفعيل الحساب، ثم سجّل الدخول / Check email, then sign in") } }
     fun logout() = work { chatJob?.cancel(); try { repository.logout() } finally { mutable.value = UiState(restoring = false, dark = mutable.value.dark, english = mutable.value.english) } }
     fun theme() { mutable.update { it.copy(dark = !it.dark) }; viewModelScope.launch { settings.setting("light", !mutable.value.dark) } }

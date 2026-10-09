@@ -25,7 +25,7 @@ class WakeelRepository @Inject constructor(private val api: WakeelApi, private v
     private val lock = Mutex()
     private var session: Session? = null
     private var owner = ""
-    suspend fun restore(): Boolean { session = store.read(); if (session == null) return false; return try { token(); true } catch (e: ApiFailure) { if (e.code == "SESSION_EXPIRED") clear(); false } catch (_: Exception) { true } }
+    suspend fun restore(): Boolean { session = store.read(); owner = session?.user?.id.orEmpty(); if (session == null) return false; return try { token(); true } catch (e: ApiFailure) { if (e.code == "SESSION_EXPIRED") clear(); false } catch (_: Exception) { true } }
     suspend fun login(email: String, password: String) {
         val data = checked(api.post("v1/auth/login", payload("email" to email.trim(), "password" to password))) as JsonObject
         session = json.decodeFromJsonElement<Session>(data); store.save(session!!); owner = data["user"]?.jsonObject?.text("id").orEmpty()
@@ -84,12 +84,18 @@ class WakeelRepository @Inject constructor(private val api: WakeelApi, private v
                     if (!response.isSuccessful) throw ApiFailure("HTTP_${response.code}")
                     val source = response.body?.source() ?: throw ApiFailure("EMPTY_RESPONSE")
                     var done = false
+                    val pending = mutableListOf<ChatEvent>()
                     val parser = SseParser { event, raw ->
                         val data = json.parseToJsonElement(raw).jsonObject
-                        if (event == "done") done = true
-                        trySend(ChatEvent(event, data))
+                        if (event == "done" || event == "error") done = true
+                        pending.add(ChatEvent(event, data))
                     }
-                    while (isActive) { val line = source.readUtf8Line() ?: break; parser.line(line) }
+                    while (isActive) {
+                        val line = source.readUtf8Line() ?: break
+                        parser.line(line)
+                        for (event in pending) send(event) // Suspend for backpressure; never drop text deltas.
+                        pending.clear()
+                    }
                     if (!done) throw ApiFailure("STREAM_INTERRUPTED")
                 }
             }

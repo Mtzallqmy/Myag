@@ -20,7 +20,9 @@ import javax.inject.Singleton
 
 private val Context.store by preferencesDataStore("wakeel_settings")
 @Serializable
-data class Session(val access_token: String, val refresh_token: String, val expires_at: Long = 0)
+data class SessionUser(val id: String)
+@Serializable
+data class Session(val access_token: String, val refresh_token: String, val expires_at: Long = 0, val user: SessionUser? = null)
 
 @Singleton
 class SessionStore @Inject constructor(@ApplicationContext private val context: Context) {

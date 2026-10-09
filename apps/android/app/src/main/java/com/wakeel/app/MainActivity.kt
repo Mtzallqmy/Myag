@@ -42,7 +42,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState); enableEdgeToEdge()
         WorkManager.getInstance(this).enqueueUniqueWork("wakeel-connectivity", ExistingWorkPolicy.KEEP,
-            OneTimeWorkRequestBuilder<HealthWorker>().setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()).build())
+            OneTimeWorkRequestBuilder<HealthWorker>().setConstraints(androidx.work.Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()).build())
         setContent { Wakeel(viewModel) }
     }
 }
@@ -200,7 +200,7 @@ private fun UiState.label(ar: String, en: String) = if (english) en else ar
     Card(colors = CardDefaults.cardColors(containerColor = if (user) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface), modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
             Text(if (user) state.label("أنت", "You") else "وكيل", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-            AndroidView(factory = { context -> TextView(context).apply { setTextIsSelectable(true); textSize = 16f } }, update = { view -> view.setTextColor(android.graphics.Color.argb((foreground.alpha * 255).toInt(), (foreground.red * 255).toInt(), (foreground.green * 255).toInt(), (foreground.blue * 255).toInt())); Markwon.create(view.context).setMarkdown(view, content) }, modifier = Modifier.fillMaxWidth())
+            AndroidView(factory = { context -> TextView(context).apply { setTextIsSelectable(true); textSize = 16f; tag = Markwon.create(context) } }, update = { view -> view.setTextColor(android.graphics.Color.argb((foreground.alpha * 255).toInt(), (foreground.red * 255).toInt(), (foreground.green * 255).toInt(), (foreground.blue * 255).toInt())); (view.tag as Markwon).setMarkdown(view, content) }, modifier = Modifier.fillMaxWidth())
             TextButton(onClick = { clipboard.setText(AnnotatedString(content)) }) { Text(state.label("نسخ", "Copy")) }
         }
     }
