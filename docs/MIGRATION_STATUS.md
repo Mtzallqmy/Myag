@@ -1,6 +1,6 @@
-# Migration status — 2026-10-08
+# Migration status — 2026-10-10 (Asia/Aden)
 
-This is an intermediate implementation, not a completed migration or beta release.
+This is an intermediate migration. The user authorized an early native tester beta before device/performance acceptance; this does not waive full feature-parity or production gates. Native build results and release provenance are recorded in ANDROID_BETA_ACCEPTANCE.md.
 
 ## Implemented
 - Audit, original feature inventory and API contract pushed on independent branch.
@@ -26,14 +26,14 @@ This is an intermediate implementation, not a completed migration or beta releas
 - Automatic resumable checkpoints/reconciliation for already-started jobs. Conservative INTERRUPTED status avoids unsafe replay.
 - Full HTTP contract: native ZIP upload, routing edits, notification/memory writes and job aggregate endpoints still need completion; original operations are exposed and originals retained.
 - Original Supabase data transfer, actual provider replies and Supabase Auth HTTP login/refresh, GitHub/MCP OAuth acceptance. Selected live DB schema/grants/advisors are verified, but this does not imply published API acceptance.
-- Android Native app and Native CI. Sequential phase 2 acceptance is still incomplete; phase 3 has not been declared started/completed.
-- BotKeep deployment, HTTPS proxy streaming verification and any fallback for demonstrated buffering.
+- Full Android feature parity. The native Kotlin/Compose beta and native CI now exist under apps/android; see apps/android/BETA_NOTES.md for the exact implemented subset and remaining screens. Phase 3 is partial, not complete.
+- BotKeep HTTPS proxy streaming verification with a real provider and any fallback for demonstrated buffering. Basic API deployment and real DB readiness are verified; see BOTKEEP_DEPLOYMENT.md.
 - Isolated runtime deployment/cleanup and validated workspace import for EMPTY projects.
-- ARM64 device tests, signed APK, beta release. None exists; existing Capacitor workflow remains legacy reference and must not be presented as native output.
+- ARM64 device/performance tests and production signing remain outstanding. The native beta pipeline builds and checks an installable test-signed APK separately from the retained legacy Capacitor workflow; exact executed results are recorded in ANDROID_BETA_ACCEPTANCE.md.
 
 ## Concrete blockers / next gate
 - Supabase config now targets `ywtfvgkhrmouqxsocgdq` after the user's accessible-project authorization. Selected DB is ACTIVE_HEALTHY and configured. The original `iwzzseqztdxrrqlbazip` remains inaccessible. Other connected projects were not modified.
-- User will manually publish the API to BotKeep using `BOTKEEP_DEPLOYMENT.md`. Server keys and HTTPS origin must be configured there before real API acceptance. No BotKeep deployment exists yet.
+- BotKeep API is Running at https://wvcvrb.bot-keep.xyz/ with all eight configured environment values. HTTPS liveness/readiness returned 200 and invalid/missing bearer requests returned 401. Real login/provider/GitHub/MCP workflows remain acceptance work.
 - Empty selected environment may use a new securely generated encryption key. Transferring original encrypted credentials later requires their original key.
 
-No new Supabase project was created. Six application migrations were applied to the user-authorized existing project. No main-branch mutation, force push, BotKeep deployment claim, or APK claim.
+No new Supabase project was created. Six application migrations were applied to the user-authorized existing project. No main-branch mutation or force push. Web source/history remain intact; the native tester beta is explicitly incomplete.

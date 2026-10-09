@@ -77,3 +77,23 @@ Baseline: `7f16619` (main), reviewed 2026-10-08. This document records source ev
 5. Actual BotKeep HTTPS SSE/proxy check and ARM64 device acceptance before beta release.
 
 Keep the legacy PWA until all inventory rows have evidence of equivalent behavior.
+
+## Native tester beta supplement — 2026-10-10
+
+The user explicitly requested a tester APK before device/performance acceptance and will perform that testing. Full migration gates above remain required for declaring parity/production completion. This early beta reuses the existing API and does not remove the web version.
+
+| Web feature | Native implementation | Beta status | Verification boundary |
+| --- | --- | --- | --- |
+| Auth/session | core/SessionStore, data/WakeelRepository, feature/WakeelViewModel | Login/refresh/logout + Supabase signup, Keystore encryption | Build/lint; live user acceptance pending |
+| Chat/history/regenerate/cancel | MainActivity Chat/Message, repository SSE, core/Sse | Native UI + existing /v1/chat | Parser unit tests; real provider/proxy/device pending |
+| Provider CRUD/discovery/model test | MainActivity Providers/ProviderForm + existing operations | Implemented UI; secrets server-only | Build/lint; external provider acceptance pending |
+| Routing/model selection | Existing routing.ts + native newConversation | Auto/manual at creation | Editing an existing conversation's routing not migrated |
+| Projects/files/search/Ask Project | MainActivity Project + readFile/searchProject/askProject | Empty project create and reading/search | ZIP/GitHub import and advanced diff UI pending |
+| Agent/jobs | MainActivity Collection jobs | Read-only monitoring | Execution/recovery UI pending; server worker disabled |
+| Approvals | MainActivity Collection approvals + decideApproval | Explicit review and approve/reject | Live persisted approval acceptance pending |
+| GitHub/MCP | Owner-scoped collection read | Account/server lists only | OAuth/connect/tools/commit/push/PR UI pending |
+| Memory/notifications/history | Owner-scoped collection read | Read-only | Editing, push notification integration pending |
+| Admin/plans/quotas/flags | Existing server operations retained | Native admin UI not implemented | Server RBAC remains authoritative |
+| RTL/theme/settings/offline cache | Compose/Navigation, Room, DataStore | Implemented | Device accessibility/reconnection/performance pending |
+
+Native sources are under apps/android/app/src/main/java/com/wakeel/app/. Markwon uses native TextView for Markdown; no WebView, Flutter, React Native or Capacitor executes the main UI.
