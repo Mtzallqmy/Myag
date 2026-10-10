@@ -4,8 +4,8 @@ import type { Capabilities, CapabilityState, NormalizedModel, PriceClass, Provid
 type Raw = Record<string, unknown>;
 
 const num = (v: unknown): number | null => {
-  const n = typeof v === "string" ? Number(v) : typeof v === "number" ? v : NaN;
-  return Number.isFinite(n) ? n : null;
+  const n = typeof v === "string" && v.trim() ? Number(v) : typeof v === "number" ? v : NaN;
+  return Number.isFinite(n) && n >= 0 ? n : null;
 };
 
 function priceClass(raw: Raw, id: string, providerType: ProviderType): PriceClass {

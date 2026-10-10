@@ -2,6 +2,7 @@
 // the model or the browser. Pure and client-safe.
 
 const PATTERNS: [RegExp, string][] = [
+  [/\b[0-9]{6,}:[A-Za-z0-9_-]{30,}\b/g, "[REDACTED_TELEGRAM_TOKEN]"],
   [/-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----/g, "[REDACTED_PRIVATE_KEY]"],
   [/\b(authorization|proxy-authorization)\s*[:=]\s*("?)[^\n"]+\2/gi, "$1: [REDACTED]"],
   [/\bBearer\s+[A-Za-z0-9\-._~+/]{8,}=*/g, "Bearer [REDACTED]"],
@@ -43,7 +44,7 @@ export function redactValue(v: unknown, depth = 0): unknown {
 /** Detects likely secrets in content about to be pushed (pre-push secret scan). */
 export function findSecrets(text: string): string[] {
   const hits: string[] = [];
-  for (const [re, label] of PATTERNS.slice(0, 11)) {
+  for (const [re, label] of PATTERNS.slice(0, 12)) {
     re.lastIndex = 0;
     if (re.test(text)) hits.push(label);
     re.lastIndex = 0;

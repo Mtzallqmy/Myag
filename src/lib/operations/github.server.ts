@@ -32,8 +32,8 @@ async function syncRepos(connectionId: string, userId: string, token: string) {
     pushed_at: r.pushed_at,
     status: "AVAILABLE",
   }));
-  for (let i = 0; i < rows.length; i += 200) await db.from("github_repositories").upsert(rows.slice(i, i + 200), { onConflict: "connection_id,github_repo_id" });
-  await db.from("github_connections").update({ last_checked_at: new Date().toISOString(), status: "ACTIVE" }).eq("id", connectionId);
+  for (let i = 0; i < rows.length; i += 200) await db.from("github_repositories").upsert(rows.slice(i, i + 200), { onConflict: "connection_id,github_repo_id" }).throwOnError();
+  await db.from("github_connections").update({ last_checked_at: new Date().toISOString(), status: "ACTIVE" }).eq("id", connectionId).throwOnError();
   return rows.length;
 }
 
@@ -79,9 +79,11 @@ export const refreshGithub = defineOperation({ method: "POST" })
 export const disconnectGithub = defineOperation({ method: "POST" })
   .inputValidator((d) => z.object({ connectionId: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }): Promise<Result<null>> => {
-    const { error } = await context.supabase.from("github_connections").delete().eq("id", data.connectionId);
-    if (error) return { ok: false, error: "DELETE_FAILED" };
+    const owned = await context.supabase.from("github_connections").select("id").eq("id", data.connectionId).maybeSingle();
+    if (!owned.data || owned.error) return { ok: false, error: "NOT_FOUND" };
     const db = await admin();
+    const {error} = await db.from("github_connections").delete().eq("id",data.connectionId).eq("user_id",context.userId);
+    if(error)return {ok:false,error:"DELETE_FAILED"};
     const { count } = await db.from("github_connections").select("id", { count: "exact", head: true }).eq("user_id", context.userId);
     if (!count) await db.from("integration_registry").update({ status: "NOT_CONNECTED", ref_id: null }).eq("user_id", context.userId).eq("integration_key", "github");
     return { ok: true, data: null };

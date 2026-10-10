@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { selectCandidates, type RoutableModel } from "@/lib/ai/routing";
 import type { RoutingMode } from "@/lib/ai/types";
+import { killSwitchOn } from "./guards.server";
 import { loadProviderConn } from "./provider-ops.server";
 import { safeErrorCode, startChat, statusFromHttp, type ChatMessage } from "./providers.server";
 
@@ -38,6 +39,7 @@ export async function completeWithRouting(
   const fallback: { model: string; code: string }[] = [];
   for (const m of candidates) {
     try {
+      if (await killSwitchOn("disable_provider", m.provider_id)) { fallback.push({ model: m.external_model_id, code: "KILL_SWITCH" }); continue; }
       const conn = await loadProviderConn(m.provider_id, userId);
       const res = await startChat(conn, m.external_model_id, messages, { stream: false, maxTokens: opts.maxTokens ?? 4000 });
       if (!res.ok) {

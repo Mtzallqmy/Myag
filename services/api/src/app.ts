@@ -1,4 +1,5 @@
-import Fastify, {type FastifyRequest} from 'fastify';
+import {AGENT_ROLES,ROLE_DEFS,pipelineFor} from "@/lib/agent/roles";
+import Fastify, {LogController,type FastifyRequest} from 'fastify';
 import cors from '@fastify/cors';
 import rateLimit from '@fastify/rate-limit';
 import {Readable} from 'node:stream';
@@ -14,9 +15,13 @@ import * as agent from '@/lib/operations/agent.server';
 import * as github from '@/lib/operations/github.server';
 import * as mcp from '@/lib/operations/mcp.server';
 import * as staff from '@/lib/operations/stage3.server';
+import {connectTelegram,testTelegram,enableTelegram,disableTelegram,disconnectTelegram,acceptTelegram} from './telegram';
+import {prepareUpload,finalizeUpload,removeUpload} from './uploads';
+import {importProjectZip} from './zip-import';
 
-export const operations = {...providers,...projects,...agent,...github,...mcp,...staff};
-const reads: Record<string,{table:string;columns:string;order:string}> = {
+export const operations = {...providers,...projects,...agent,...github,...mcp,...staff,connectTelegram,testTelegram,enableTelegram,disableTelegram,disconnectTelegram,importProjectZip,prepareUpload,finalizeUpload,removeUpload};
+export const reads: Record<string,{table:string;columns:string;order:string}> = {
+  uploads:{table:'wakeel_uploads',columns:'id,name,mime,size_bytes,purpose,status,created_at',order:'created_at'},
   conversations:{table:'conversations',columns:'*',order:'updated_at'},
   messages:{table:'messages',columns:'*',order:'created_at'},
   providers:{table:'ai_providers',columns:'id,name,provider_type,base_url,status,token_hint,created_at',order:'created_at'},
@@ -24,10 +29,13 @@ const reads: Record<string,{table:string;columns:string;order:string}> = {
   projects:{table:'projects',columns:'*',order:'updated_at'},
   files:{table:'project_files',columns:'path,size_bytes,is_binary,line_count,project_id',order:'path'},
   jobs:{table:'agent_jobs',columns:'*',order:'created_at'},
+  steps:{table:'agent_job_steps',columns:'*',order:'step_number'},
+  telegram:{table:'telegram_bots',columns:'id,username,allowed_user_id,status,created_at',order:'created_at'},
+  telegramEvents:{table:'telegram_inbox',columns:'id,bot_id,status,error_code,created_at',order:'created_at'},
   approvals:{table:'approvals',columns:'*',order:'created_at'},
   changes:{table:'change_sets',columns:'*',order:'created_at'},
   validations:{table:'validation_runs',columns:'*',order:'created_at'},
-  github:{table:'github_connections',columns:'id,github_login,status,created_at',order:'created_at'},
+  github:{table:'github_connections',columns:'id,github_login:account_login,status,created_at',order:'created_at'},
   repositories:{table:'github_repositories',columns:'*',order:'pushed_at'},
   mcp:{table:'mcp_servers',columns:'id,name,url,status,auth_type,created_at',order:'created_at'},
   tools:{table:'mcp_tools',columns:'*',order:'name'},
@@ -54,7 +62,7 @@ export interface AppDependencies {
   ready?:()=>Promise<boolean>;
 }
 export async function buildApp(deps:AppDependencies={}) {
-  const app=Fastify({bodyLimit:5*1024*1024,disableRequestLogging:true,logger:{level:'info',redact:['req.headers.authorization','req.headers.cookie','body','response.headers.set-cookie']}});
+  const app=Fastify({bodyLimit:5*1024*1024,logController:new LogController({disableRequestLogging:true}),logger:{level:'info',redact:['req.headers.authorization','req.headers.cookie','body','response.headers.set-cookie']}});
   await app.register(cors,{origin:process.env['CORS_ORIGINS']?.split(',').filter(Boolean) ?? false});
   await app.register(rateLimit,{max:60,timeWindow:'1 minute'});
   const authenticate=deps.authenticate ?? getUserFromRequest;
@@ -71,7 +79,15 @@ export async function buildApp(deps:AppDependencies={}) {
     req.log.warn({event:'request_failed',code,requestId:req.id});
     reply.code(code==='BAD_REQUEST'?400:code==='RATE_LIMITED'?429:code==='PAYLOAD_TOO_LARGE'?413:500).send({ok:false,error:code});
   });
-  app.get('/health/live',async()=>({status:'ok'}));
+  app.get('/health/live',async()=>({status:'ok',version:'0.6.0'}));
+  app.get('/v1/capabilities',async()=>({ok:true,data:{version:'0.6.0',telegram:true,zip_import:true,media_upload:true,vision_chat:true,agent_worker:process.env['WAKEEL_WORKER_ENABLED']==='true',runtime:Boolean(process.env['AGENT_RUNTIME_BASE_URL']&&process.env['AGENT_RUNTIME_SHARED_SECRET'])}}));
+  app.get('/v1/agent/profiles',async()=>({ok:true,data:{roles:AGENT_ROLES.map(id=>({id,...ROLE_DEFS[id]})),pipelines:Object.fromEntries((['FAST','BALANCED','DEEP','MULTI'] as const).map(depth=>[depth,pipelineFor(depth)])),execution:'SERVER_QUEUE',worker_enabled:process.env['WAKEEL_WORKER_ENABLED']==='true'}}));
+  app.post('/api/public/telegram/:id',{bodyLimit:32768,config:{rateLimit:{max:120,timeWindow:'1 minute'}}},async(req,reply)=>{
+    const id=(req.params as {id:string}).id;
+    const secret=req.headers['x-telegram-bot-api-secret-token'];
+    const result=await acceptTelegram(id,typeof secret==='string'?secret:undefined,req.body);
+    return reply.code(result.status).send({ok:result.status===200});
+  });
   app.get('/health/ready',async(_,reply)=>{
     const ok=await (deps.ready ?? (async()=>{
       if(!process.env['SUPABASE_URL']||!process.env['SUPABASE_SERVICE_ROLE_KEY']||!process.env['SUPABASE_PUBLISHABLE_KEY']||!process.env['PROVIDER_ENCRYPTION_KEY_V1'])return false;
@@ -92,10 +108,11 @@ export async function buildApp(deps:AppDependencies={}) {
   }
   app.get('/v1/data/:collection',async(req,reply)=>{
     const {collection}=z.object({collection:z.enum(Object.keys(reads) as [string,...string[]])}).parse(req.params);
-    const query=z.object({id:z.string().uuid().optional(),projectId:z.string().uuid().optional(),conversationId:z.string().uuid().optional(),serverId:z.string().uuid().optional(),offset:z.coerce.number().int().min(0).max(100000).default(0),limit:z.coerce.number().int().min(1).max(500).default(100)}).strict().parse(req.query);
+    const query=z.object({id:z.string().uuid().optional(),jobId:z.string().uuid().optional(),projectId:z.string().uuid().optional(),conversationId:z.string().uuid().optional(),serverId:z.string().uuid().optional(),offset:z.coerce.number().int().min(0).max(100000).default(0),limit:z.coerce.number().int().min(1).max(500).default(100)}).strict().parse(req.query);
     const r=reads[collection]!;
-    let q=(req as any).wakeelContext.supabase.from(r.table).select(r.columns).order(r.order,{ascending:['messages','files','models'].includes(collection)}).range(query.offset,query.offset+query.limit-1);
+    let q=(req as any).wakeelContext.supabase.from(r.table).select(r.columns).order(r.order,{ascending:['files','models','steps'].includes(collection)}).range(query.offset,query.offset+query.limit-1);
     if(query.id)q=q.eq('id',query.id);
+    if(query.jobId)q=q.eq('job_id',query.jobId);
     if(query.projectId)q=q.eq('project_id',query.projectId);
     if(query.conversationId)q=q.eq('conversation_id',query.conversationId);
     if(query.serverId)q=q.eq('server_id',query.serverId);

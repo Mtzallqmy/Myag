@@ -1,0 +1,15 @@
+# Beta 6 acceptance status
+
+Retains Beta 5 media, vision previews and diagnostics. Adds native GitHub PAT connection/discovery/repository import/issue and pull-request reads, and MCP Streamable HTTP/Bearer/OAuth browser authorization/tool-resource discovery/tool permissions/manual approved calls. No integration token is persisted in Android. Server policy still governs writes.
+
+Fixes GitHub disconnect to use a caller-RLS ownership read followed by owner-filtered service deletion. Repository synchronization now throws on database failures. Telegram disconnect deletes only the webhook URL owned by this Wakeel instance, including after a prior disable failure.
+
+API build/typecheck and shared TypeScript checks executed after these changes. 29/29 API tests executed and passed after upgrading Fastify to 5.12.5. Production npm audit reports zero known vulnerabilities. Android CI 38072569406/job 114272850278 succeeded: 13 Kotlin unit tests, lint (23 warnings), release assembly, signatures, API26/36 and ARM64 checks. No device installation is claimed. Real GitHub/MCP/Telegram service acceptance needs supplied tokens and actual endpoints; no such service result is claimed from compilation. MCP OAuth returns through the server callback; native automatic App Links return remains incomplete.
+
+BotKeep: explicit Stop moved the server Offline; GitHub import advanced from safe-stop to source staging then paused with “Source staging was interrupted. Existing application files were not changed.” Cancel/restore was requested to release the operation. Deployment is not successful until HTTP readiness and the new protected routes are confirmed. Repository source is 272 tracked files / ~2.22MB, within the displayed BotKeep import limits (1000 files / 20MB / 4MB per file).
+
+See Beta 5 acceptance for preview coverage, storage limits, authentication-test restriction and missing physical-device/runtime acceptance. This remains an experimental beta, not full web-feature parity.
+
+APK: com.wakeel.app.beta6, versionCode 6, versionName 0.1.0-beta.6, 10,109,528 bytes. SHA-256 f9def9e0c611c3ebe416609fc5a8b41f84f9360e67177d009d3e4dde44386ea7. Tester certificate SHA-256 59668f3b88b480d48ef45ed4931c57b4c3eef6b2eb3296e0555f4f92a1e92c28. Source release 6fb7f545d96671ccfc773873eec2d7ef79dc261e. CI artifact 11677710910 contains the APK, signature reports, manifest, SHA256SUMS and actual HTML test/lint reports. v1 verified separately at verifier API21; default API26 uses v2. This uses a tester debug certificate; stable production signing has not been provisioned.
+
+After BotKeep rollback completed, package.json, package-lock.json and the self-contained dist/index.js compiled from the migration branch were uploaded using the Files UI. Startup changed to cd services/api && npm ci --include=dev && npm start, keeping environment credentials unchanged. WAKEEL_WORKER_ENABLED was saved as true. Runtime start requested; final HTTPS availability remains to be verified. The deployed source folders still contain the prior web reference: do not run the old build command over this compiled deployment until a complete GitHub source import succeeds.

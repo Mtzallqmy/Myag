@@ -1,6 +1,16 @@
-> Native migration is in progress on `migration/android-native-botkeep`. The PWA is retained. A standalone API is under `services/api`; no Native APK is available yet. See [migration status](docs/MIGRATION_STATUS.md), [audit](docs/MIGRATION_AUDIT.md), [API contract](docs/API_CONTRACT.md) and [BotKeep setup](docs/BOTKEEP_DEPLOYMENT.md).
+> Native migration is in progress on `migration/android-native-botkeep`. The original PWA is retained. The standalone BotKeep API is under `services/api` and native Kotlin/Compose tester-beta source is under `apps/android`. See [native beta scope](apps/android/BETA_NOTES.md), [executed acceptance](docs/ANDROID_BETA_ACCEPTANCE.md), [migration status](docs/MIGRATION_STATUS.md), [audit](docs/MIGRATION_AUDIT.md), [API contract](docs/API_CONTRACT.md) and [BotKeep setup](docs/BOTKEEP_DEPLOYMENT.md).
 
-# Wakeel (وكيل) — AI Coding Agent Platform · Stage 1
+# Wakeel (وكيل) — AI Coding Agent Platform
+
+## Native Android tester beta
+
+- Kotlin + Jetpack Compose / Material 3, Arabic RTL and English, light/dark.
+- Android 8.0+ (min API 26), target API 36, arm64-v8a native libraries only.
+- Reuses the versioned standalone API; session encrypted by Android Keystore.
+- This is a partial migration for user testing, not full feature parity. ZIP upload, full agent execution/recovery, GitHub/MCP action screens and admin UI remain incomplete.
+- Native CI: `.github/workflows/android-native-beta.yml`. The old Capacitor workflow is a legacy reference, not the native build.
+
+## Legacy web implementation — Stage 1
 
 Mobile-first, Arabic-first (RTL) installable web app for chatting with AI models from your own OpenAI-compatible providers.
 

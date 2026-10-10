@@ -36,3 +36,10 @@ dist-ssr
 .env.*
 !.env.example
 supabase/.temp/
+
+# Native Android build output and local signing material
+apps/android/.gradle/
+apps/android/**/build/
+apps/android/local.properties
+*.jks
+*.keystore

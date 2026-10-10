@@ -10,7 +10,7 @@ test('liveness works without secrets and readiness fails closed',async t=>{
 });
 test('protected routes reject missing and invalid authentication before DB access',async t=>{
  const a=await app(t,{authenticate:async()=>null});
- for(const url of ['/v1/data/providers','/v1/operations/adminOverview','/v1/chat']) {
+ for(const url of ['/v1/data/providers','/v1/agent/profiles','/v1/operations/adminOverview','/v1/chat']) {
   const r=await a.inject({url,method:url.endsWith('chat')?'POST':'GET',payload:url.endsWith('chat')?{}:undefined});
   assert.equal(r.statusCode,401);assert.equal(r.json().error,'UNAUTHORIZED');
  }
@@ -21,7 +21,7 @@ test('unknown tables and unsafe filters are rejected',async t=>{
 });
 test('operation validators preserved across transport',async t=>{
  const a=await app(t,{authenticate:async()=>context});
- for(const name of ['createProvider','createProject','searchProject','connectGithub','addMcpServer','decideApproval']) {
+ for(const name of ['createProvider','createProject','searchProject','connectGithub','addMcpServer','decideApproval','connectTelegram','enableTelegram','importProjectZip','prepareUpload','finalizeUpload','removeUpload','testModel']) {
   const r=await a.inject({url:`/v1/operations/${name}`,method:'POST',payload:{}});
   assert.equal(r.statusCode,400,name);assert.equal(r.json().error,'BAD_REQUEST');
  }
@@ -59,4 +59,28 @@ test('actual HTTP sends the first SSE event before generation ends and disconnec
  const reader=response.body.getReader();const first=await reader.read();assert.match(new TextDecoder().decode(first.value),/first/);assert.equal(completed,false);
  await reader.cancel();
  await new Promise(resolve=>setTimeout(resolve,50));assert.equal(cancelled,true);assert.equal(completed,false);
+});
+
+test('agent profiles expose the canonical bounded pipelines and current worker state',async t=>{
+ const a=await app(t,{authenticate:async()=>context});
+ const r=await a.inject('/v1/agent/profiles');assert.equal(r.statusCode,200);
+ const data=r.json().data;assert.equal(data.execution,'SERVER_QUEUE');assert.equal(data.worker_enabled,process.env.WAKEEL_WORKER_ENABLED==='true');
+ assert.ok(data.roles.length>1);const ids=new Set(data.roles.map(r=>r.id));
+ for(const pipeline of Object.values(data.pipelines)){assert.ok(pipeline.length<=10);assert.ok(pipeline.every(id=>ids.has(id)));}
+});
+
+test('integration operations stop at caller-scoped ownership before accessing server credentials',async t=>{
+ const calls=[];const q={select(){return this;},eq(){return this;},maybeSingle:async()=>({data:null,error:null})};
+ const a=await app(t,{authenticate:async()=>({...context,supabase:{from(table){calls.push(table);return q;}}})});
+ for(const [operation,payload] of [['disconnectGithub',{connectionId:context.userId}],['refreshMcpServer',{serverId:context.userId}],['callMcpTool',{toolId:context.userId,args:{},confirmed:true}]]){
+  const r=await a.inject({method:'POST',url:`/v1/operations/${operation}`,payload});assert.equal(r.statusCode,404);assert.equal(r.json().error,'NOT_FOUND');
+ }
+ assert.deepEqual(calls,['github_connections','mcp_servers','mcp_tools']);
+});
+
+test('malformed protected URLs fail closed without credentials or DB access',async t=>{
+ const a=await app(t,{authenticate:async()=>null});
+ for(const url of ['/v1/data/%ZZ','/v1/operations/%E0%A4%A']){
+  const r=await a.inject({method:'GET',url});assert.ok([400,401,404].includes(r.statusCode));assert.equal(r.body.includes('service_role'),false);
+ }
 });
