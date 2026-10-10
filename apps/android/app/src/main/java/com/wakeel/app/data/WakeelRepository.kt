@@ -103,8 +103,19 @@ class WakeelRepository @Inject constructor(private val api: WakeelApi, private v
         }
     }
     suspend fun operation(name: String, body: JsonObject): JsonElement = checked(api.post("v1/operations/$name", body, "Bearer ${token()}"))
-    suspend fun newConversation(model: String?): String {
-        val body = buildJsonObject { put("routingMode", if (model == null) "AUTO" else "MANUAL"); model?.let { put("modelId", it) } }
+    suspend fun localFiles(): List<CachedFile> { if (owner.isEmpty()) throw ApiFailure("SESSION_EXPIRED"); return database.files().files(owner, "LOCAL") }
+    suspend fun saveLocal(name: String, content: String): CachedFile {
+        if (owner.isEmpty()) throw ApiFailure("SESSION_EXPIRED")
+        val report = withContext(Dispatchers.Default) { FileInspector.inspect(name, content) }
+        val safeName = name.replace(Regex("[\\\\/\\p{Cntrl}]"), "_").take(150).ifBlank { "file.txt" }
+        val file = CachedFile(owner, "LOCAL", report.sha256.take(12) + "/" + safeName, content, System.currentTimeMillis())
+        database.files().save(file); database.files().trim(owner, "LOCAL"); return file
+    }
+    suspend fun removeLocal(path: String) = database.files().remove(owner, "LOCAL", path)
+    suspend fun capabilities(): JsonObject = checked(api.get("v1/capabilities", "Bearer ${token()}")).jsonObject
+    suspend fun jobRows(jobId: String): Map<String, List<JsonObject>> = listOf("steps", "changes", "validations").associateWith { rows(it, "?jobId=$jobId").data }
+    suspend fun newConversation(model: String?, routing: String = "AUTO"): String {
+        val body = buildJsonObject { put("routingMode", if (model == null) routing else "MANUAL"); model?.let { put("modelId", it) } }
         return checked(api.post("v1/conversations", body, "Bearer ${token()}")).jsonObject.text("id")
     }
     fun chat(id: String, content: String?, retry: Boolean = false): Flow<ChatEvent> = channelFlow {

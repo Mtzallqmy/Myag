@@ -13,6 +13,7 @@ interface CacheDao {
 @Entity(primaryKeys = ["owner", "projectId", "path"])
 data class CachedFile(val owner: String, val projectId: String, val path: String, val content: String, val savedAt: Long)
 @Dao interface FileCacheDao {
+    @Query("DELETE FROM CachedFile WHERE owner = :owner AND projectId = :projectId AND path = :path") suspend fun remove(owner: String, projectId: String, path: String)
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun save(file: CachedFile)
     @Query("SELECT * FROM CachedFile WHERE owner = :owner AND projectId = :projectId AND path = :path LIMIT 1") suspend fun read(owner: String, projectId: String, path: String): CachedFile?
     @Query("SELECT * FROM CachedFile WHERE owner = :owner AND projectId = :projectId ORDER BY savedAt DESC LIMIT 50") suspend fun files(owner: String, projectId: String): List<CachedFile>

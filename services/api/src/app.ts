@@ -14,8 +14,10 @@ import * as agent from '@/lib/operations/agent.server';
 import * as github from '@/lib/operations/github.server';
 import * as mcp from '@/lib/operations/mcp.server';
 import * as staff from '@/lib/operations/stage3.server';
+import {connectTelegram,testTelegram,enableTelegram,disableTelegram,disconnectTelegram,acceptTelegram} from './telegram';
+import {importProjectZip} from './zip-import';
 
-export const operations = {...providers,...projects,...agent,...github,...mcp,...staff};
+export const operations = {...providers,...projects,...agent,...github,...mcp,...staff,connectTelegram,testTelegram,enableTelegram,disableTelegram,disconnectTelegram,importProjectZip};
 export const reads: Record<string,{table:string;columns:string;order:string}> = {
   conversations:{table:'conversations',columns:'*',order:'updated_at'},
   messages:{table:'messages',columns:'*',order:'created_at'},
@@ -24,6 +26,9 @@ export const reads: Record<string,{table:string;columns:string;order:string}> = 
   projects:{table:'projects',columns:'*',order:'updated_at'},
   files:{table:'project_files',columns:'path,size_bytes,is_binary,line_count,project_id',order:'path'},
   jobs:{table:'agent_jobs',columns:'*',order:'created_at'},
+  steps:{table:'agent_job_steps',columns:'*',order:'step_number'},
+  telegram:{table:'telegram_bots',columns:'id,username,allowed_user_id,status,created_at',order:'created_at'},
+  telegramEvents:{table:'telegram_inbox',columns:'id,bot_id,status,error_code,created_at',order:'created_at'},
   approvals:{table:'approvals',columns:'*',order:'created_at'},
   changes:{table:'change_sets',columns:'*',order:'created_at'},
   validations:{table:'validation_runs',columns:'*',order:'created_at'},
@@ -72,6 +77,13 @@ export async function buildApp(deps:AppDependencies={}) {
     reply.code(code==='BAD_REQUEST'?400:code==='RATE_LIMITED'?429:code==='PAYLOAD_TOO_LARGE'?413:500).send({ok:false,error:code});
   });
   app.get('/health/live',async()=>({status:'ok'}));
+  app.get('/v1/capabilities',async()=>({ok:true,data:{version:'0.5.0',telegram:true,zip_import:true,agent_worker:process.env['WAKEEL_WORKER_ENABLED']==='true',runtime:Boolean(process.env['AGENT_RUNTIME_BASE_URL']&&process.env['AGENT_RUNTIME_SHARED_SECRET'])}}));
+  app.post('/api/public/telegram/:id',{bodyLimit:32768,config:{rateLimit:{max:120,timeWindow:'1 minute'}}},async(req,reply)=>{
+    const id=(req.params as {id:string}).id;
+    const secret=req.headers['x-telegram-bot-api-secret-token'];
+    const result=await acceptTelegram(id,typeof secret==='string'?secret:undefined,req.body);
+    return reply.code(result.status).send({ok:result.status===200});
+  });
   app.get('/health/ready',async(_,reply)=>{
     const ok=await (deps.ready ?? (async()=>{
       if(!process.env['SUPABASE_URL']||!process.env['SUPABASE_SERVICE_ROLE_KEY']||!process.env['SUPABASE_PUBLISHABLE_KEY']||!process.env['PROVIDER_ENCRYPTION_KEY_V1'])return false;
@@ -92,10 +104,11 @@ export async function buildApp(deps:AppDependencies={}) {
   }
   app.get('/v1/data/:collection',async(req,reply)=>{
     const {collection}=z.object({collection:z.enum(Object.keys(reads) as [string,...string[]])}).parse(req.params);
-    const query=z.object({id:z.string().uuid().optional(),projectId:z.string().uuid().optional(),conversationId:z.string().uuid().optional(),serverId:z.string().uuid().optional(),offset:z.coerce.number().int().min(0).max(100000).default(0),limit:z.coerce.number().int().min(1).max(500).default(100)}).strict().parse(req.query);
+    const query=z.object({id:z.string().uuid().optional(),jobId:z.string().uuid().optional(),projectId:z.string().uuid().optional(),conversationId:z.string().uuid().optional(),serverId:z.string().uuid().optional(),offset:z.coerce.number().int().min(0).max(100000).default(0),limit:z.coerce.number().int().min(1).max(500).default(100)}).strict().parse(req.query);
     const r=reads[collection]!;
     let q=(req as any).wakeelContext.supabase.from(r.table).select(r.columns).order(r.order,{ascending:['messages','files','models'].includes(collection)}).range(query.offset,query.offset+query.limit-1);
     if(query.id)q=q.eq('id',query.id);
+    if(query.jobId)q=q.eq('job_id',query.jobId);
     if(query.projectId)q=q.eq('project_id',query.projectId);
     if(query.conversationId)q=q.eq('conversation_id',query.conversationId);
     if(query.serverId)q=q.eq('server_id',query.serverId);

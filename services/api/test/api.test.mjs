@@ -21,7 +21,7 @@ test('unknown tables and unsafe filters are rejected',async t=>{
 });
 test('operation validators preserved across transport',async t=>{
  const a=await app(t,{authenticate:async()=>context});
- for(const name of ['createProvider','createProject','searchProject','connectGithub','addMcpServer','decideApproval']) {
+ for(const name of ['createProvider','createProject','searchProject','connectGithub','addMcpServer','decideApproval','connectTelegram','enableTelegram','importProjectZip']) {
   const r=await a.inject({url:`/v1/operations/${name}`,method:'POST',payload:{}});
   assert.equal(r.statusCode,400,name);assert.equal(r.json().error,'BAD_REQUEST');
  }

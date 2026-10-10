@@ -26,6 +26,7 @@ test('fresh schema migrations bootstrap users and isolate their conversations',a
   '../../../drizzle/migrations/0003_drop_unused_has_role.sql',
   '../../../supabase/migrations/20261008032239_durable_agent_execution.sql',
   '../../../supabase/migrations/20261008223240_wakeel_private_archives_and_event_grants.sql',
+  '../../../supabase/migrations/20261010015526_wakeel_telegram_bridge.sql',
  ]) await db.exec(await readFile(new URL(file,import.meta.url),'utf8'));
  // Validate the actual HTTP projection against the complete database schema.
  // Empty result sets must not hide nonexistent columns (e.g. GitHub account_login).
@@ -36,7 +37,7 @@ test('fresh schema migrations bootstrap users and isolate their conversations',a
  const security=(await db.query(`SELECT count(*)::int AS tables,bool_and(relrowsecurity) AS all_rls
  FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
  WHERE n.nspname='public' AND c.relkind='r'`)).rows[0];
- assert.deepEqual(security,{tables:42,all_rls:true});
+ assert.deepEqual(security,{tables:45,all_rls:true});
  assert.deepEqual((await db.query("SELECT public, file_size_limit::int AS limit_bytes FROM storage.buckets WHERE id='project-archives'")).rows[0],{public:false,limit_bytes:52428800});
  const owner='11111111-1111-4111-8111-111111111111';
  const other='22222222-2222-4222-8222-222222222222';
@@ -48,7 +49,7 @@ test('fresh schema migrations bootstrap users and isolate their conversations',a
  await db.query("SELECT set_config('request.jwt.claim.sub',$1,false)",[other]);
  assert.equal((await db.query('SELECT * FROM conversations')).rows.length,0);
  await assert.rejects(db.query("INSERT INTO conversations(user_id,title) VALUES($1,'forged owner')",[owner]));
- for(const table of ['provider_secrets','github_credentials','mcp_credentials','mcp_oauth_states','app_events','wakeel_job_queue'])
+ for(const table of ['provider_secrets','github_credentials','mcp_credentials','mcp_oauth_states','app_events','wakeel_job_queue','telegram_bot_secrets'])
   await assert.rejects(db.query(`SELECT * FROM ${table}`));
  await db.query("SELECT set_config('request.jwt.claim.sub',$1,false)",[owner]);
  assert.equal((await db.query('SELECT * FROM conversations')).rows.length,1);

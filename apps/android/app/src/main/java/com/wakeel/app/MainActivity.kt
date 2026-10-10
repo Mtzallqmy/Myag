@@ -7,7 +7,10 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.foundation.*
+import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -88,6 +91,11 @@ private fun UiState.label(ar: String, en: String) = if (english) en else ar
         "PIN_FAILED" -> state.label("الرمز غير صحيح. بعد 5 محاولات انتظر 30 ثانية.", "Incorrect PIN. After 5 attempts, wait 30 seconds.")
         "SESSION_EXPIRED", "HTTP_401" -> state.label("انتهت الجلسة؛ سجّل الدخول مجددًا.", "Session expired. Sign in again.")
         "HTTP_429" -> state.label("طلبات كثيرة؛ انتظر قليلًا ثم أعد المحاولة.", "Too many requests. Wait, then retry.")
+        "FILE_TOO_LARGE" -> state.label("الملف أكبر من الحد المسموح. اختر ملفًا أصغر.", "File exceeds the limit. Choose a smaller file.")
+        "BINARY_FILE", "UNSUPPORTED_ENCODING" -> state.label("اختر ملفًا نصيًا بترميز UTF-8؛ الملفات الثنائية لا تُعرض كنص.", "Choose a UTF-8 text file. Binary files cannot be displayed as text.")
+        "FILE_PROCESSING_FAILED" -> state.label("تعذرت معالجة الملف؛ تحقق من تنسيقه وصلاحيته.", "File processing failed. Check its format and validity.")
+        "AGENT_WORKER_UNAVAILABLE" -> state.label("مشغّل الوكيل غير مفعّل على الخادم الحالي.", "The agent worker is disabled on this server.")
+        "HTTP_404" -> state.label("هذه الوظيفة تتطلب نشر إصدار الخادم الجديد.", "This feature requires the updated backend deployment.")
         "FILE_NOT_CACHED" -> state.label("هذا الملف لم يُحفظ محليًا بعد. افتحه عند توفر الاتصال أولًا.", "This file is not cached. Open it online first.")
         "PROJECT_NOT_CACHED" -> state.label("لا توجد ملفات محفوظة لهذا المشروع للبحث دون اتصال.", "No cached files are available for offline search.")
         else -> state.label("تعذّر الطلب: ", "Request failed: ") + code
@@ -133,14 +141,14 @@ private fun UiState.label(ar: String, en: String) = if (english) en else ar
         Row(Modifier.statusBarsPadding().fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp), horizontalArrangement = Arrangement.SpaceBetween) {
             Text("وكيل", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
             if (route !in tabs.map { it.first }) TextButton(onClick = { vm.stop(); nav.popBackStack() }) { Text(state.label("رجوع", "Back")) }
-            else Text("BETA 3", color = MaterialTheme.colorScheme.secondary, fontSize = 12.sp)
+            else Text("BETA 4", color = MaterialTheme.colorScheme.secondary, fontSize = 12.sp)
         }
     }, bottomBar = {
         if (route != "chat") NavigationBar {
             tabs.forEachIndexed { index, tab -> NavigationBarItem(selected = route == tab.first, onClick = { nav.navigate(tab.first) { popUpTo("home") { saveState = true }; launchSingleTop = true; restoreState = true } }, icon = { Text(listOf("⌂", "◌", "▤", "✓", "•••")[index], fontSize = 22.sp) }, label = { Text(state.label(tab.second, tab.third), fontSize = 10.sp, maxLines = 1) }) }
         }
     }) { padding ->
-        NavHost(nav, startDestination = "home", modifier = Modifier.padding(padding).fillMaxSize()) {
+        NavHost(nav, startDestination = "home", modifier = Modifier.padding(padding).fillMaxSize(), enterTransition = { fadeIn(tween(180)) + slideInHorizontally(tween(180)) { it / 12 } }, exitTransition = { fadeOut(tween(100)) }, popEnterTransition = { fadeIn(tween(180)) }, popExitTransition = { fadeOut(tween(100)) }) {
             composable("home") {
                 Column(Modifier.padding(20.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(20.dp)) {
                     Text(state.label("مرحبًا بك في وكيل", "Welcome to Wakeel"), style = MaterialTheme.typography.headlineMedium)
@@ -150,16 +158,24 @@ private fun UiState.label(ar: String, en: String) = if (english) en else ar
                         Button(onClick = { vm.openChat(null); nav.navigate("chat") }) { Text(state.label("محادثة جديدة", "New conversation")) }
                     } }
                     OutlinedButton(onClick = { nav.navigate("providers") }, modifier = Modifier.fillMaxWidth()) { Text(state.label("المزودون والنماذج", "Providers and models")) }
-                    Text(state.label("بيتا أولية: المهام للمتابعة حاليًا. رفع ZIP وتنفيذ المهام وتكاملات GitHub وMCP الكاملة لم تُنقل بعد.", "Early beta: task monitoring only. ZIP upload, task execution and full GitHub/MCP flows are not migrated yet."), style = MaterialTheme.typography.bodySmall)
+                    OutlinedButton(onClick = { nav.navigate("local") }, modifier = Modifier.fillMaxWidth()) { Text(state.label("مختبر الملفات · يعمل محليًا", "File workspace · local")) }
+                    OutlinedButton(onClick = { nav.navigate("zipImport") }, modifier = Modifier.fillMaxWidth()) { Text(state.label("استيراد مشروع ZIP", "Import ZIP project")) }
+                    OutlinedButton(onClick = { nav.navigate("telegram") }, modifier = Modifier.fillMaxWidth()) { Text(state.label("بوتات تليجرام", "Telegram bots")) }
+                    Text(state.label("تنفيذ المهام وتكامل تليجرام يحتاجان API المطور وعامل الخادم. اختبار وبناء المشاريع يحتاجان Runtime معزولًا.", "Task execution and Telegram require the updated API and server worker. Project tests/builds require an isolated runtime."), style = MaterialTheme.typography.bodySmall)
                     Status(state)
                 }
             }
             composable("chat") { Chat(state, vm) }
             composable("project") { Project(state, vm) }
             composable("providers") { Providers(state, vm) }
+            composable("local") { LocalWorkspace(state, vm) { nav.navigate("chat") } }
+            composable("telegram") { TelegramScreen(state, vm) }
+            composable("zipImport") { ZipImport(state, vm) }
+            composable("taskDetail") { TaskDetail(state, vm) { nav.navigate("approvals") } }
+            composable("models") { LaunchedEffect(Unit) { vm.load("models") }; Column(Modifier.fillMaxSize().padding(16.dp)) { Status(state); ModelBrowser(state, onTest = { model -> vm.operation("testModel", payload("id" to model.text("id"))) }) { model -> vm.selectModel(model.text("id")); vm.openChat(null); nav.navigate("chat") } } }
             composable("more") {
                 LazyColumn(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(listOf(Triple("providers", "المزودون", "Providers"), Triple("models", "النماذج", "Models"), Triple("github", "GitHub · الحسابات", "GitHub accounts"), Triple("mcp", "تكاملات MCP", "MCP integrations"), Triple("memory", "الذاكرة", "Memory"), Triple("notifications", "الإشعارات", "Notifications"), Triple("history", "السجل", "History"), Triple("approvals", "الموافقات", "Approvals"))) { row ->
+                    items(listOf(Triple("local", "مختبر الملفات المحلي", "Local file workspace"), Triple("telegram", "بوتات تليجرام", "Telegram bots"), Triple("zipImport", "استيراد ZIP", "Import ZIP"), Triple("providers", "المزودون", "Providers"), Triple("models", "النماذج", "Models"), Triple("github", "GitHub · الحسابات", "GitHub accounts"), Triple("mcp", "تكاملات MCP", "MCP integrations"), Triple("memory", "الذاكرة", "Memory"), Triple("notifications", "الإشعارات", "Notifications"), Triple("history", "السجل", "History"), Triple("approvals", "الموافقات", "Approvals"))) { row ->
                         OutlinedButton(onClick = { nav.navigate(row.first) }, modifier = Modifier.fillMaxWidth()) { Text(state.label(row.second, row.third)) }
                     }
                     item { Row { TextButton(onClick = { vm.theme() }) { Text(state.label("ليلي / نهاري", "Dark / light")) }; TextButton(onClick = { vm.language() }) { Text("العربية / English") } } }
@@ -168,10 +184,11 @@ private fun UiState.label(ar: String, en: String) = if (english) en else ar
                     item { Status(state) }
                 }
             }
-            listOf("conversations", "projects", "jobs", "models", "github", "mcp", "memory", "notifications", "history", "approvals").forEach { collection -> composable(collection) {
+            listOf("conversations", "projects", "jobs", "github", "mcp", "memory", "notifications", "history", "approvals").forEach { collection -> composable(collection) {
                 Collection(state, vm, collection) { row -> when (collection) {
                     "conversations" -> { vm.openChat(row.text("id").takeIf { it.isNotBlank() }); nav.navigate("chat") }
                     "projects" -> { vm.openProject(row.text("id")); nav.navigate("project") }
+                    "jobs" -> { vm.openJob(row); nav.navigate("taskDetail") }
                     "models" -> { vm.selectModel(row.text("id")); vm.openChat(null); nav.navigate("chat") }
                 } }
             } }
@@ -197,7 +214,7 @@ private fun UiState.label(ar: String, en: String) = if (english) en else ar
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(listOf("title", "name", "display_name", "summary", "action", "github_login", "request_text").firstNotNullOfOrNull { row.text(it).takeIf(String::isNotEmpty) } ?: row.text("id"), fontWeight = FontWeight.SemiBold)
                     Text(listOf("status", "provider_type", "external_model_id", "created_at").map { row.text(it) }.filter(String::isNotEmpty).joinToString(" · "), style = MaterialTheme.typography.bodySmall)
-                    if (collection == "jobs") Text(state.label("متابعة الحالة فقط في هذه البيتا", "Monitoring only in this beta"), style = MaterialTheme.typography.bodySmall)
+                    if (collection == "jobs") Text("${row.text("mode")} · ${row.text("progress")}%", style = MaterialTheme.typography.bodySmall)
                     if (collection == "approvals") { SelectionContainer { Text(row.toString(), style = MaterialTheme.typography.bodySmall) }; if (row.text("status") == "PENDING") TextButton(onClick = { approval = row }) { Text(state.label("مراجعة القرار", "Review decision")) } }
                     if (collection == "models") TextButton(onClick = { vm.operation("testModel", payload("modelId" to row.text("id"))) }) { Text(state.label("اختبار النموذج", "Test model")) }
                 }
@@ -211,7 +228,10 @@ private fun UiState.label(ar: String, en: String) = if (english) en else ar
     var input by rememberSaveable { mutableStateOf("") }
     var chooseModel by remember { mutableStateOf(false) }
     val scroll = rememberLazyListState()
-    LaunchedEffect(state.messages.size, state.draftReply.length) { val count = state.messages.size + if (state.draftReply.isNotEmpty()) 1 else 0; if (count > 0) scroll.animateScrollToItem(count - 1) }
+    var follow by remember { mutableStateOf(true) }
+    val dragged by scroll.interactionSource.collectIsDraggedAsState()
+    LaunchedEffect(dragged) { if (dragged) follow = false }
+    LaunchedEffect(state.messages.size, state.draftReply.length, state.streaming, follow) { val count = state.messages.size + (if (state.draftReply.isNotEmpty()) 1 else 0) + (if (state.streaming) 1 else 0); if (follow && count > 0) scroll.animateScrollToItem(count - 1) }
     Column(Modifier.fillMaxSize().imePadding()) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), horizontalArrangement = Arrangement.SpaceBetween) {
             TextButton(onClick = { vm.load("models"); chooseModel = true }, enabled = state.conversation == null && !state.streaming) { Text(state.label("النموذج: ", "Model: ") + (state.selectedModel?.let { id -> state.rows["models"]?.find { it.text("id") == id }?.text("display_name") } ?: state.label("تلقائي", "Auto"))) }
@@ -219,10 +239,14 @@ private fun UiState.label(ar: String, en: String) = if (english) en else ar
         }
         if (state.model.isNotEmpty()) Text(state.model, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(horizontal = 20.dp))
         Status(state)
+        if (!follow) TextButton(onClick = { follow = true }) { Text(state.label("متابعة أحدث الردود ↓", "Follow latest replies ↓")) }
+        if (state.attachment.isNotEmpty()) Row(Modifier.padding(horizontal = 12.dp)) { Text(state.label("ملف منقح مرفق · راجعه قبل الإرسال", "Redacted file attached · review before sending"), modifier = Modifier.weight(1f), style = MaterialTheme.typography.labelSmall); TextButton(onClick = { vm.removeAttachment() }) { Text("×") } }
         LazyColumn(Modifier.weight(1f).padding(horizontal = 14.dp), state = scroll, verticalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(vertical = 12.dp)) {
             items(state.messages) { row -> Message(row.text("content"), row.text("role") == "user", state) }
             if (state.draftReply.isNotEmpty()) item { Message(state.draftReply, false, state) }
+            if (state.streaming) item { Column { LinearProgressIndicator(Modifier.fillMaxWidth()); Text(state.label("وكيل يولّد الرد…", "Wakeel is responding…"), style = MaterialTheme.typography.labelSmall) } }
             if (state.messages.isEmpty() && !state.streaming) item { Text(state.label("كيف أساعدك في مشروعك اليوم؟", "How can I help with your project?"), modifier = Modifier.padding(24.dp)) }
+            if (state.messages.isEmpty() && !state.streaming) item { Column { listOf(state.label("حلّل الشيفرة وحدد المشاكل", "Analyze code and identify issues"), state.label("اقترح خطة تطوير مع اختبارات", "Propose an implementation plan with tests"), state.label("راجع الأمان والاعتماديات", "Review security and dependencies")).forEach { prompt -> SuggestionChip(onClick = { input = prompt }, label = { Text(prompt) }) } } }
         }
         Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedTextField(input, { input = it }, placeholder = { Text(state.label("اكتب رسالتك…", "Message…")) }, modifier = Modifier.weight(1f), maxLines = 5, shape = RoundedCornerShape(20.dp))
@@ -230,9 +254,9 @@ private fun UiState.label(ar: String, en: String) = if (english) en else ar
             else Button(onClick = { vm.send(input); input = "" }, enabled = input.isNotBlank()) { Text(state.label("إرسال", "Send")) }
         }
     }
-    if (chooseModel) AlertDialog(onDismissRequest = { chooseModel = false }, title = { Text(state.label("نموذج المحادثة الجديدة", "New conversation model")) }, text = { LazyColumn {
-        item { TextButton(onClick = { vm.selectModel(null); chooseModel = false }) { Text(state.label("توجيه تلقائي", "Automatic routing")) } }
-        items(state.rows["models"].orEmpty()) { model -> TextButton(onClick = { vm.selectModel(model.text("id")); chooseModel = false }) { Text(model.text("display_name")) } }
+    if (chooseModel) AlertDialog(onDismissRequest = { chooseModel = false }, title = { Text(state.label("نموذج المحادثة الجديدة", "New conversation model")) }, text = { Column(Modifier.heightIn(max = 520.dp)) {
+        Row(Modifier.horizontalScroll(rememberScrollState())) { listOf("AUTO" to state.label("تلقائي", "Auto"), "PREFER_FREE" to state.label("فضّل المجاني", "Prefer free"), "PREFER_CODING" to state.label("برمجة", "Coding"), "PREFER_LONG_CONTEXT" to state.label("سياق طويل", "Long context")).forEach { (mode, title) -> TextButton(onClick = { vm.routing(mode); chooseModel = false }) { Text(title) } } }
+        ModelBrowser(state) { model -> vm.selectModel(model.text("id")); chooseModel = false }
     } }, confirmButton = { TextButton(onClick = { chooseModel = false }) { Text(state.label("إغلاق", "Close")) } })
 }
 @Composable private fun Message(content: String, user: Boolean, state: UiState) {
@@ -241,10 +265,24 @@ private fun UiState.label(ar: String, en: String) = if (english) en else ar
     Card(colors = CardDefaults.cardColors(containerColor = if (user) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface), modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
             Text(if (user) state.label("أنت", "You") else "وكيل", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-            AndroidView(factory = { context -> TextView(context).apply { setTextIsSelectable(true); textSize = 16f; tag = Markwon.create(context) } }, update = { view -> view.setTextColor(android.graphics.Color.argb((foreground.alpha * 255).toInt(), (foreground.red * 255).toInt(), (foreground.green * 255).toInt(), (foreground.blue * 255).toInt())); (view.tag as Markwon).setMarkdown(view, content) }, modifier = Modifier.fillMaxWidth())
+            val blocks = remember(content) { Regex("```([^\\n`]*)\\n([\\s\\S]*?)```").findAll(content).take(20).toList() }
+            var cursor = 0
+            blocks.forEach { block ->
+                val before = content.substring(cursor, block.range.first)
+                if (before.isNotBlank()) NativeMarkdown(before, foreground)
+                Surface(color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) { Column(Modifier.padding(10.dp)) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text(block.groupValues[1].ifBlank { "code" }, style = MaterialTheme.typography.labelSmall); TextButton(onClick = { clipboard.setText(AnnotatedString(block.groupValues[2])) }) { Text(state.label("نسخ الشيفرة", "Copy code")) } }
+                    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) { SelectionContainer { Text(block.groupValues[2], fontFamily = FontFamily.Monospace, modifier = Modifier.heightIn(max = 320.dp).verticalScroll(rememberScrollState()).horizontalScroll(rememberScrollState())) } }
+                } }
+                cursor = block.range.last + 1
+            }
+            if (cursor < content.length) NativeMarkdown(content.substring(cursor), foreground)
             TextButton(onClick = { clipboard.setText(AnnotatedString(content)) }) { Text(state.label("نسخ", "Copy")) }
         }
     }
+}
+@Composable private fun NativeMarkdown(content: String, foreground: Color) {
+    AndroidView(factory = { context -> TextView(context).apply { setTextIsSelectable(true); textSize = 16f; tag = Markwon.create(context) } }, update = { view -> view.setTextColor(android.graphics.Color.argb((foreground.alpha * 255).toInt(), (foreground.red * 255).toInt(), (foreground.green * 255).toInt(), (foreground.blue * 255).toInt())); (view.tag as Markwon).setMarkdown(view, content) }, modifier = Modifier.fillMaxWidth())
 }
 @Composable private fun Providers(state: UiState, vm: WakeelViewModel) {
     LaunchedEffect(Unit) { vm.load("providers") }
@@ -286,6 +324,7 @@ private fun UiState.label(ar: String, en: String) = if (english) en else ar
         OutlinedTextField(query, { query = it }, label = { Text(state.label("بحث أو سؤال عن المشروع", "Search or ask project")) }, modifier = Modifier.fillMaxWidth())
         Row { Button(onClick = { vm.operation("searchProject", buildJsonObject { put("projectId", state.project); put("query", query); put("kinds", buildJsonArray { add("file"); add("text"); add("symbol") }) }) }, enabled = query.isNotBlank()) { Text(state.label("بحث", "Search")) }; TextButton(onClick = { vm.operation("askProject", payload("projectId" to state.project.orEmpty(), "question" to query)) }, enabled = query.length >= 2) { Text(state.label("اسأل المشروع", "Ask project")) } }
         Status(state)
+        TaskControls(state, vm)
         if (state.result.isNotEmpty()) SelectionContainer { Text(state.result, fontFamily = FontFamily.Monospace) }
         state.rows["files"].orEmpty().forEach { file -> TextButton(onClick = { vm.readFile(file.text("path")) }) { Text(file.text("path"), fontFamily = FontFamily.Monospace) } }
         if (state.file.isNotEmpty()) CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) { SelectionContainer { Text(state.file.lineSequence().mapIndexed { index, line -> "${index + 1}  $line" }.joinToString("\n"), fontFamily = FontFamily.Monospace, modifier = Modifier.horizontalScroll(rememberScrollState())) } }
