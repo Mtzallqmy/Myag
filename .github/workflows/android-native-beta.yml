@@ -35,7 +35,9 @@ jobs:
           mkdir -p beta-output
           APK=apps/android/app/build/outputs/apk/release/app-release.apk
           "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs "$APK" | tee beta-output/apk-signature.txt
-          grep 'Verified using v1 scheme (JAR signing): true' beta-output/apk-signature.txt
+          # Default API 26 verification chooses v2; explicitly check JAR signing too.
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --min-sdk-version 21 --verbose "$APK" | tee beta-output/apk-legacy-signature.txt
+          grep 'Verified using v1 scheme (JAR signing): true' beta-output/apk-legacy-signature.txt
           grep 'Verified using v2 scheme (APK Signature Scheme v2): true' beta-output/apk-signature.txt
           "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "$APK" > beta-output/apk-manifest.txt
           grep "package: name='com.wakeel.app.beta3'" beta-output/apk-manifest.txt
