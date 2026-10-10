@@ -11,11 +11,11 @@ android {
     compileSdk = 36
     defaultConfig {
         // New install identity avoids update conflicts with ephemeral Beta 1/2 certificates.
-        applicationId = "com.wakeel.app.beta4"
+        applicationId = "com.wakeel.app.beta5"
         minSdk = 26
         targetSdk = 36
-        versionCode = 4
-        versionName = "0.1.0-beta.4"
+        versionCode = 5
+        versionName = "0.1.0-beta.5"
         ndk { abiFilters += "arm64-v8a" }
         buildConfigField("String", "API_ORIGIN", "\"https://wvcvrb.bot-keep.xyz/\"")
     }

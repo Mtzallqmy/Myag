@@ -37,3 +37,12 @@ This is an intermediate migration. The user authorized an early native tester be
 - Empty selected environment may use a new securely generated encryption key. Transferring original encrypted credentials later requires their original key.
 
 No new Supabase project was created. Six application migrations were applied to the user-authorized existing project. No main-branch mutation or force push. Web source/history remain intact; the native tester beta is explicitly incomplete.
+
+## Beta 4 update
+
+Source 05796afb16909f88bc8b8322accc2330995dbfa0 adds local file inspection/processing/export, catalog filters, chat code/attachment/transition improvements, small ZIP import, native agent controls/details and secure read/chat Telegram bridge. Supabase Telegram migration applied to the existing selected project. CI passed 11 native unit tests, Lint and APK verification; local and CI backend suites passed 23 tests; legacy 71 tests/build remained passing.
+
+This is a published tester beta, not complete legacy feature parity. Full started-step recovery, GitHub/MCP native integration workflows, admin parity, isolated project execution and physical-device acceptance remain pending. BotKeep deployment and artifact identity are recorded in ANDROID_BETA_4_ACCEPTANCE.md.
+
+## Beta 5 work
+API 0.6 and native media/diagnostic improvements are prepared. Supabase private attachment migration applied. API 27 tests / legacy 71 tests executed successfully locally; Android build and live deployment acceptance pending. See ANDROID_BETA_5_ACCEPTANCE.md for precise limits and verification updates.

@@ -27,6 +27,7 @@ test('fresh schema migrations bootstrap users and isolate their conversations',a
   '../../../supabase/migrations/20261008032239_durable_agent_execution.sql',
   '../../../supabase/migrations/20261008223240_wakeel_private_archives_and_event_grants.sql',
   '../../../supabase/migrations/20261010015526_wakeel_telegram_bridge.sql',
+  '../../../supabase/migrations/20261010172202_wakeel_media_uploads.sql',
  ]) await db.exec(await readFile(new URL(file,import.meta.url),'utf8'));
  // Validate the actual HTTP projection against the complete database schema.
  // Empty result sets must not hide nonexistent columns (e.g. GitHub account_login).
@@ -37,7 +38,7 @@ test('fresh schema migrations bootstrap users and isolate their conversations',a
  const security=(await db.query(`SELECT count(*)::int AS tables,bool_and(relrowsecurity) AS all_rls
  FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
  WHERE n.nspname='public' AND c.relkind='r'`)).rows[0];
- assert.deepEqual(security,{tables:45,all_rls:true});
+ assert.deepEqual(security,{tables:46,all_rls:true});
  assert.deepEqual((await db.query("SELECT public, file_size_limit::int AS limit_bytes FROM storage.buckets WHERE id='project-archives'")).rows[0],{public:false,limit_bytes:52428800});
  const owner='11111111-1111-4111-8111-111111111111';
  const other='22222222-2222-4222-8222-222222222222';
@@ -54,4 +55,18 @@ test('fresh schema migrations bootstrap users and isolate their conversations',a
  await db.query("SELECT set_config('request.jwt.claim.sub',$1,false)",[owner]);
  assert.equal((await db.query('SELECT * FROM conversations')).rows.length,1);
  await db.exec('RESET ROLE');
+ const upload=(await db.query("SELECT wakeel_reserve_upload($1,'image.jpg','image/jpeg',1024,'VISION') AS id",[owner])).rows[0].id;
+ await db.exec('SET ROLE authenticated');
+ assert.equal((await db.query('SELECT * FROM wakeel_uploads')).rows.length,1);
+ await assert.rejects(db.query("SELECT wakeel_reserve_upload($1,'forged','image/jpeg',1024,'VISION')",[owner]));
+ await assert.rejects(db.query("UPDATE wakeel_uploads SET status='READY'"));
+ await db.query("SELECT set_config('request.jwt.claim.sub',$1,false)",[other]);
+ assert.equal((await db.query('SELECT * FROM wakeel_uploads')).rows.length,0);
+ await db.exec('RESET ROLE');
+ await db.query("UPDATE wakeel_uploads SET status='READY' WHERE id=$1",[upload]);
+ for(let i=0;i<49;i++){ await db.query("SELECT wakeel_reserve_upload($1,'file','application/octet-stream',1,'FILE')",[owner]); await db.exec("UPDATE wakeel_uploads SET status='READY'"); }
+ await assert.rejects(db.query("SELECT wakeel_reserve_upload($1,'overflow','application/octet-stream',1,'FILE')",[owner]),/UPLOAD_QUOTA_EXCEEDED/);
+ for(let i=0;i<10;i++)await db.query("SELECT wakeel_reserve_upload($1,'tiny','application/octet-stream',1,'FILE')",[other]);
+ await assert.rejects(db.query("SELECT wakeel_reserve_upload($1,'overflow','application/octet-stream',1,'FILE')",[other]),/UPLOAD_QUOTA_EXCEEDED/);
+ assert.equal((await db.query("SELECT public FROM storage.buckets WHERE id='wakeel-uploads'")).rows[0].public,false);
 });

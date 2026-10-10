@@ -78,3 +78,16 @@ If BotKeep demonstrably buffers SSE, the client must use a server-side persisted
 Queue claims use SQL row locks / SKIP LOCKED, lease tokens and owner checks. Re-enqueueing the same job is idempotent. Queued work survives process restart. Expired RUNNING work is marked INTERRUPTED and never silently replayed; partial pipeline reconciliation/checkpoint resume remains unfinished. Do not enable production background execution until this limitation is accepted or completed. No automatic retry of pushes, approvals or MCP writes.
 
 Shutdown stops new polling and waits for the active job for up to 15s; forced shutdown leaves durable queue state for lease recovery. Logs are structured and request bodies/credentials are excluded.
+
+## Beta 4 upgrade
+
+Sync `migration/android-native-botkeep` using Merge files to retain host configuration. Existing startup must install/build the API (`npm --prefix services/api ci` and `npm --prefix services/api run build`) and start it with `npm --prefix services/api start`. Verify the imported commit rather than assuming a GitHub push redeploys BotKeep.
+
+Apply `supabase/migrations/20261010015526_wakeel_telegram_bridge.sql` to the existing Supabase database. It adds owner-readable metadata/inbox and service-only encrypted Telegram secrets plus service-only lease RPCs; it does not duplicate Supabase Auth or provider/agent systems. This migration was applied successfully to selected project ywtfvgkhrmouqxsocgdq on 2026-10-10.
+
+Set `PUBLIC_API_ORIGIN=https://wvcvrb.bot-keep.xyz` for this installation. Preserve `PROVIDER_ENCRYPTION_KEY_V1`; Telegram reuses it and needs no new global secret variable. Connect a bot from Android with its token and your numeric Telegram user ID, then explicitly activate its webhook. A working configured AI provider is required for replies. The Telegram worker runs inside the Node process; repository agent jobs still require `WAKEEL_WORKER_ENABLED=true`. Without an isolated Runtime, project builds/tests remain UNAVAILABLE. Never execute user code in BotKeep API.
+
+Actual deployment/build/test results and remaining acceptance gaps are recorded in docs/ANDROID_BETA_4_ACCEPTANCE.md after checks finish.
+
+### Beta 5 upgrade
+API 0.6 adds upload prepare/finalize/delete and agent profile routes. Apply `20261010172202_wakeel_media_uploads.sql` to the same Supabase project (applied during this session). No extra secret variable is needed. Keep existing encryption key and credentials. Enable `WAKEEL_WORKER_ENABLED=true` after the new server bundle is deployed; this activates the existing PostgreSQL lease worker, not an in-process user-code sandbox. Runtime stays UNAVAILABLE until an isolated runtime URL/shared secret are configured. Source imports must finish successfully before a restart; the old API returns 404 for the new routes.

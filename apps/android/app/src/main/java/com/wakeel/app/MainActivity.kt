@@ -91,6 +91,7 @@ private fun UiState.label(ar: String, en: String) = if (english) en else ar
         "PIN_FAILED" -> state.label("الرمز غير صحيح. بعد 5 محاولات انتظر 30 ثانية.", "Incorrect PIN. After 5 attempts, wait 30 seconds.")
         "SESSION_EXPIRED", "HTTP_401" -> state.label("انتهت الجلسة؛ سجّل الدخول مجددًا.", "Session expired. Sign in again.")
         "HTTP_429" -> state.label("طلبات كثيرة؛ انتظر قليلًا ثم أعد المحاولة.", "Too many requests. Wait, then retry.")
+        "MESSAGE_TOO_LARGE" -> state.label("الرسالة والمرفق أكبر من 32 ألف حرف.", "Message and attachment exceed 32,000 characters.")
         "FILE_TOO_LARGE" -> state.label("الملف أكبر من الحد المسموح. اختر ملفًا أصغر.", "File exceeds the limit. Choose a smaller file.")
         "BINARY_FILE", "UNSUPPORTED_ENCODING" -> state.label("اختر ملفًا نصيًا بترميز UTF-8؛ الملفات الثنائية لا تُعرض كنص.", "Choose a UTF-8 text file. Binary files cannot be displayed as text.")
         "FILE_PROCESSING_FAILED" -> state.label("تعذرت معالجة الملف؛ تحقق من تنسيقه وصلاحيته.", "File processing failed. Check its format and validity.")
@@ -141,7 +142,7 @@ private fun UiState.label(ar: String, en: String) = if (english) en else ar
         Row(Modifier.statusBarsPadding().fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp), horizontalArrangement = Arrangement.SpaceBetween) {
             Text("وكيل", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
             if (route !in tabs.map { it.first }) TextButton(onClick = { vm.stop(); nav.popBackStack() }) { Text(state.label("رجوع", "Back")) }
-            else Text("BETA 4", color = MaterialTheme.colorScheme.secondary, fontSize = 12.sp)
+            else Text("BETA 5", color = MaterialTheme.colorScheme.secondary, fontSize = 12.sp)
         }
     }, bottomBar = {
         if (route != "chat") NavigationBar {
@@ -158,6 +159,8 @@ private fun UiState.label(ar: String, en: String) = if (english) en else ar
                         Button(onClick = { vm.openChat(null); nav.navigate("chat") }) { Text(state.label("محادثة جديدة", "New conversation")) }
                     } }
                     OutlinedButton(onClick = { nav.navigate("providers") }, modifier = Modifier.fillMaxWidth()) { Text(state.label("المزودون والنماذج", "Providers and models")) }
+                    OutlinedButton(onClick = { nav.navigate("connections") }, modifier = Modifier.fillMaxWidth()) { Text(state.label("الوكلاء والاتصالات · فحص مباشر", "Agents and connections · live check")) }
+                    OutlinedButton(onClick = { nav.navigate("media") }, modifier = Modifier.fillMaxWidth()) { Text(state.label("صور وفيديو وPDF · فحص ورفع", "Images, video and PDF · inspect and upload")) }
                     OutlinedButton(onClick = { nav.navigate("local") }, modifier = Modifier.fillMaxWidth()) { Text(state.label("مختبر الملفات · يعمل محليًا", "File workspace · local")) }
                     OutlinedButton(onClick = { nav.navigate("zipImport") }, modifier = Modifier.fillMaxWidth()) { Text(state.label("استيراد مشروع ZIP", "Import ZIP project")) }
                     OutlinedButton(onClick = { nav.navigate("telegram") }, modifier = Modifier.fillMaxWidth()) { Text(state.label("بوتات تليجرام", "Telegram bots")) }
@@ -165,17 +168,19 @@ private fun UiState.label(ar: String, en: String) = if (english) en else ar
                     Status(state)
                 }
             }
-            composable("chat") { Chat(state, vm) }
+            composable("chat") { Chat(state, vm) { nav.navigate("media") } }
+            composable("media") { MediaWorkspace(state, vm) { nav.navigate("chat") { launchSingleTop = true } } }
             composable("project") { Project(state, vm) }
             composable("providers") { Providers(state, vm) }
             composable("local") { LocalWorkspace(state, vm) { nav.navigate("chat") } }
+            composable("connections") { Connections(state, vm) { vm.load("projects"); nav.navigate("projects") } }
             composable("telegram") { TelegramScreen(state, vm) }
             composable("zipImport") { ZipImport(state, vm) }
             composable("taskDetail") { TaskDetail(state, vm) { nav.navigate("approvals") } }
-            composable("models") { LaunchedEffect(Unit) { vm.load("models") }; Column(Modifier.fillMaxSize().padding(16.dp)) { Status(state); ModelBrowser(state, onTest = { model -> vm.operation("testModel", payload("id" to model.text("id"))) }) { model -> vm.selectModel(model.text("id")); vm.openChat(null); nav.navigate("chat") } } }
+            composable("models") { LaunchedEffect(Unit) { vm.load("models") }; Column(Modifier.fillMaxSize().padding(16.dp)) { Status(state); ModelBrowser(state, onTest = { model -> vm.operation("testModel", payload("modelId" to model.text("id"))) }) { model -> vm.selectModel(model.text("id")); vm.openChat(null); nav.navigate("chat") } } }
             composable("more") {
                 LazyColumn(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(listOf(Triple("local", "مختبر الملفات المحلي", "Local file workspace"), Triple("telegram", "بوتات تليجرام", "Telegram bots"), Triple("zipImport", "استيراد ZIP", "Import ZIP"), Triple("providers", "المزودون", "Providers"), Triple("models", "النماذج", "Models"), Triple("github", "GitHub · الحسابات", "GitHub accounts"), Triple("mcp", "تكاملات MCP", "MCP integrations"), Triple("memory", "الذاكرة", "Memory"), Triple("notifications", "الإشعارات", "Notifications"), Triple("history", "السجل", "History"), Triple("approvals", "الموافقات", "Approvals"))) { row ->
+                    items(listOf(Triple("media", "الوسائط والرفع", "Media and uploads"), Triple("connections", "الوكلاء والاتصالات", "Agents and connections"), Triple("local", "مختبر الملفات المحلي", "Local file workspace"), Triple("telegram", "بوتات تليجرام", "Telegram bots"), Triple("zipImport", "استيراد ZIP", "Import ZIP"), Triple("providers", "المزودون", "Providers"), Triple("models", "النماذج", "Models"), Triple("github", "GitHub · الحسابات", "GitHub accounts"), Triple("mcp", "تكاملات MCP", "MCP integrations"), Triple("memory", "الذاكرة", "Memory"), Triple("notifications", "الإشعارات", "Notifications"), Triple("history", "السجل", "History"), Triple("approvals", "الموافقات", "Approvals"))) { row ->
                         OutlinedButton(onClick = { nav.navigate(row.first) }, modifier = Modifier.fillMaxWidth()) { Text(state.label(row.second, row.third)) }
                     }
                     item { Row { TextButton(onClick = { vm.theme() }) { Text(state.label("ليلي / نهاري", "Dark / light")) }; TextButton(onClick = { vm.language() }) { Text("العربية / English") } } }
@@ -224,7 +229,7 @@ private fun UiState.label(ar: String, en: String) = if (english) en else ar
     if (showNew) AlertDialog(onDismissRequest = { showNew = false }, title = { Text(state.label("مشروع فارغ", "Empty project")) }, text = { OutlinedTextField(name, { name = it }, label = { Text(state.label("الاسم", "Name")) }) }, confirmButton = { TextButton(onClick = { vm.operation("createProject", payload("name" to name, "sourceType" to "EMPTY"), "projects"); showNew = false }, enabled = name.isNotBlank()) { Text(state.label("إنشاء", "Create")) } }, dismissButton = { TextButton(onClick = { showNew = false }) { Text(state.label("إلغاء", "Cancel")) } })
     approval?.let { row -> AlertDialog(onDismissRequest = { approval = null }, title = { Text(state.label("موافقة صريحة", "Explicit approval")) }, text = { Text(row.toString()) }, confirmButton = { TextButton(onClick = { vm.operation("decideApproval", payload("approvalId" to row.text("id"), "decision" to "APPROVE"), "approvals"); approval = null }) { Text(state.label("أوافق على الإجراء المعروض", "Approve displayed action")) } }, dismissButton = { TextButton(onClick = { vm.operation("decideApproval", payload("approvalId" to row.text("id"), "decision" to "REJECT"), "approvals"); approval = null }) { Text(state.label("رفض", "Reject")) } }) }
 }
-@Composable private fun Chat(state: UiState, vm: WakeelViewModel) {
+@Composable private fun Chat(state: UiState, vm: WakeelViewModel, onMedia: () -> Unit) {
     var input by rememberSaveable { mutableStateOf("") }
     var chooseModel by remember { mutableStateOf(false) }
     val scroll = rememberLazyListState()
@@ -242,16 +247,18 @@ private fun UiState.label(ar: String, en: String) = if (english) en else ar
         if (!follow) TextButton(onClick = { follow = true }) { Text(state.label("متابعة أحدث الردود ↓", "Follow latest replies ↓")) }
         if (state.attachment.isNotEmpty()) Row(Modifier.padding(horizontal = 12.dp)) { Text(state.label("ملف منقح مرفق · راجعه قبل الإرسال", "Redacted file attached · review before sending"), modifier = Modifier.weight(1f), style = MaterialTheme.typography.labelSmall); TextButton(onClick = { vm.removeAttachment() }) { Text("×") } }
         LazyColumn(Modifier.weight(1f).padding(horizontal = 14.dp), state = scroll, verticalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(vertical = 12.dp)) {
-            items(state.messages) { row -> Message(row.text("content"), row.text("role") == "user", state) }
-            if (state.draftReply.isNotEmpty()) item { Message(state.draftReply, false, state) }
+            items(state.messages) { row -> Message(row.text("content"), row.text("role") == "user", state.english) }
+            if (state.draftReply.isNotEmpty()) item { Message(state.draftReply, false, state.english) }
             if (state.streaming) item { Column { LinearProgressIndicator(Modifier.fillMaxWidth()); Text(state.label("وكيل يولّد الرد…", "Wakeel is responding…"), style = MaterialTheme.typography.labelSmall) } }
             if (state.messages.isEmpty() && !state.streaming) item { Text(state.label("كيف أساعدك في مشروعك اليوم؟", "How can I help with your project?"), modifier = Modifier.padding(24.dp)) }
             if (state.messages.isEmpty() && !state.streaming) item { Column { listOf(state.label("حلّل الشيفرة وحدد المشاكل", "Analyze code and identify issues"), state.label("اقترح خطة تطوير مع اختبارات", "Propose an implementation plan with tests"), state.label("راجع الأمان والاعتماديات", "Review security and dependencies")).forEach { prompt -> SuggestionChip(onClick = { input = prompt }, label = { Text(prompt) }) } } }
         }
+        TextButton(onClick = onMedia, enabled = !state.streaming && !state.busy) { Text(state.label("إرفاق صورة أو فيديو أو ملف", "Attach image, video or file")) }
+        if (!com.wakeel.app.core.ChatInput.fits(input, state.attachment)) Text(state.label("الرسالة والمرفق يتجاوزان 32 ألف حرف؛ اختصرهما قبل الإرسال.", "Message and attachment exceed 32,000 characters. Shorten before sending."), color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(12.dp))
         Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedTextField(input, { input = it }, placeholder = { Text(state.label("اكتب رسالتك…", "Message…")) }, modifier = Modifier.weight(1f), maxLines = 5, shape = RoundedCornerShape(20.dp))
             if (state.streaming) Button(onClick = { vm.stop() }) { Text(state.label("إيقاف", "Stop")) }
-            else Button(onClick = { vm.send(input); input = "" }, enabled = input.isNotBlank()) { Text(state.label("إرسال", "Send")) }
+            else Button(onClick = { vm.send(input); input = "" }, enabled = !state.busy && input.isNotBlank() && com.wakeel.app.core.ChatInput.fits(input, state.attachment)) { Text(state.label("إرسال", "Send")) }
         }
     }
     if (chooseModel) AlertDialog(onDismissRequest = { chooseModel = false }, title = { Text(state.label("نموذج المحادثة الجديدة", "New conversation model")) }, text = { Column(Modifier.heightIn(max = 520.dp)) {
@@ -259,30 +266,32 @@ private fun UiState.label(ar: String, en: String) = if (english) en else ar
         ModelBrowser(state) { model -> vm.selectModel(model.text("id")); chooseModel = false }
     } }, confirmButton = { TextButton(onClick = { chooseModel = false }) { Text(state.label("إغلاق", "Close")) } })
 }
-@Composable private fun Message(content: String, user: Boolean, state: UiState) {
+@Composable private fun Message(content: String, user: Boolean, english: Boolean) {
     val clipboard = LocalClipboardManager.current
     val foreground = MaterialTheme.colorScheme.onSurface
     Card(colors = CardDefaults.cardColors(containerColor = if (user) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface), modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
-            Text(if (user) state.label("أنت", "You") else "وكيل", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+            Text(if (user) messageLabel(english, "أنت", "You") else "وكيل", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
             val blocks = remember(content) { Regex("```([^\\n`]*)\\n([\\s\\S]*?)```").findAll(content).take(20).toList() }
             var cursor = 0
             blocks.forEach { block ->
                 val before = content.substring(cursor, block.range.first)
                 if (before.isNotBlank()) NativeMarkdown(before, foreground)
                 Surface(color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) { Column(Modifier.padding(10.dp)) {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text(block.groupValues[1].ifBlank { "code" }, style = MaterialTheme.typography.labelSmall); TextButton(onClick = { clipboard.setText(AnnotatedString(block.groupValues[2])) }) { Text(state.label("نسخ الشيفرة", "Copy code")) } }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text(block.groupValues[1].ifBlank { "code" }, style = MaterialTheme.typography.labelSmall); TextButton(onClick = { clipboard.setText(AnnotatedString(block.groupValues[2])) }) { Text(messageLabel(english, "نسخ الشيفرة", "Copy code")) } }
                     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) { SelectionContainer { Text(block.groupValues[2], fontFamily = FontFamily.Monospace, modifier = Modifier.heightIn(max = 320.dp).verticalScroll(rememberScrollState()).horizontalScroll(rememberScrollState())) } }
                 } }
                 cursor = block.range.last + 1
             }
             if (cursor < content.length) NativeMarkdown(content.substring(cursor), foreground)
-            TextButton(onClick = { clipboard.setText(AnnotatedString(content)) }) { Text(state.label("نسخ", "Copy")) }
+            TextButton(onClick = { clipboard.setText(AnnotatedString(content)) }) { Text(messageLabel(english, "نسخ", "Copy")) }
         }
     }
 }
+private fun messageLabel(english: Boolean, ar: String, en: String) = if (english) en else ar
+private class MarkdownBinding(val markwon: Markwon, var source: String? = null)
 @Composable private fun NativeMarkdown(content: String, foreground: Color) {
-    AndroidView(factory = { context -> TextView(context).apply { setTextIsSelectable(true); textSize = 16f; tag = Markwon.create(context) } }, update = { view -> view.setTextColor(android.graphics.Color.argb((foreground.alpha * 255).toInt(), (foreground.red * 255).toInt(), (foreground.green * 255).toInt(), (foreground.blue * 255).toInt())); (view.tag as Markwon).setMarkdown(view, content) }, modifier = Modifier.fillMaxWidth())
+    AndroidView(factory = { context -> TextView(context).apply { setTextIsSelectable(true); textSize = 16f; tag = MarkdownBinding(Markwon.create(context)) } }, update = { view -> view.setTextColor(android.graphics.Color.argb((foreground.alpha * 255).toInt(), (foreground.red * 255).toInt(), (foreground.green * 255).toInt(), (foreground.blue * 255).toInt())); val binding = view.tag as MarkdownBinding; if (binding.source != content) { binding.markwon.setMarkdown(view, content); binding.source = content } }, modifier = Modifier.fillMaxWidth())
 }
 @Composable private fun Providers(state: UiState, vm: WakeelViewModel) {
     LaunchedEffect(Unit) { vm.load("providers") }

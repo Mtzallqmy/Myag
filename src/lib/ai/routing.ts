@@ -61,7 +61,7 @@ export function selectCandidates(input: RouteInput): RoutableModel[] {
   const limit = input.fallbackEnabled ? MAX_MODEL_ATTEMPTS : 1;
 
   const preferred = input.preferredModelId
-    ? input.models.find((m) => m.id === input.preferredModelId && m.is_available)
+    ? usable.find((m) => m.id === input.preferredModelId)
     : undefined;
 
   if (input.mode === "MANUAL") {

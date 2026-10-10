@@ -1,3 +1,4 @@
+import {AGENT_ROLES,ROLE_DEFS,pipelineFor} from "@/lib/agent/roles";
 import Fastify, {type FastifyRequest} from 'fastify';
 import cors from '@fastify/cors';
 import rateLimit from '@fastify/rate-limit';
@@ -15,10 +16,12 @@ import * as github from '@/lib/operations/github.server';
 import * as mcp from '@/lib/operations/mcp.server';
 import * as staff from '@/lib/operations/stage3.server';
 import {connectTelegram,testTelegram,enableTelegram,disableTelegram,disconnectTelegram,acceptTelegram} from './telegram';
+import {prepareUpload,finalizeUpload,removeUpload} from './uploads';
 import {importProjectZip} from './zip-import';
 
-export const operations = {...providers,...projects,...agent,...github,...mcp,...staff,connectTelegram,testTelegram,enableTelegram,disableTelegram,disconnectTelegram,importProjectZip};
+export const operations = {...providers,...projects,...agent,...github,...mcp,...staff,connectTelegram,testTelegram,enableTelegram,disableTelegram,disconnectTelegram,importProjectZip,prepareUpload,finalizeUpload,removeUpload};
 export const reads: Record<string,{table:string;columns:string;order:string}> = {
+  uploads:{table:'wakeel_uploads',columns:'id,name,mime,size_bytes,purpose,status,created_at',order:'created_at'},
   conversations:{table:'conversations',columns:'*',order:'updated_at'},
   messages:{table:'messages',columns:'*',order:'created_at'},
   providers:{table:'ai_providers',columns:'id,name,provider_type,base_url,status,token_hint,created_at',order:'created_at'},
@@ -77,7 +80,8 @@ export async function buildApp(deps:AppDependencies={}) {
     reply.code(code==='BAD_REQUEST'?400:code==='RATE_LIMITED'?429:code==='PAYLOAD_TOO_LARGE'?413:500).send({ok:false,error:code});
   });
   app.get('/health/live',async()=>({status:'ok'}));
-  app.get('/v1/capabilities',async()=>({ok:true,data:{version:'0.5.0',telegram:true,zip_import:true,agent_worker:process.env['WAKEEL_WORKER_ENABLED']==='true',runtime:Boolean(process.env['AGENT_RUNTIME_BASE_URL']&&process.env['AGENT_RUNTIME_SHARED_SECRET'])}}));
+  app.get('/v1/capabilities',async()=>({ok:true,data:{version:'0.6.0',telegram:true,zip_import:true,media_upload:true,vision_chat:true,agent_worker:process.env['WAKEEL_WORKER_ENABLED']==='true',runtime:Boolean(process.env['AGENT_RUNTIME_BASE_URL']&&process.env['AGENT_RUNTIME_SHARED_SECRET'])}}));
+  app.get('/v1/agent/profiles',async()=>({ok:true,data:{roles:AGENT_ROLES.map(id=>({id,...ROLE_DEFS[id]})),pipelines:Object.fromEntries((['FAST','BALANCED','DEEP','MULTI'] as const).map(depth=>[depth,pipelineFor(depth)])),execution:'SERVER_QUEUE',worker_enabled:process.env['WAKEEL_WORKER_ENABLED']==='true'}}));
   app.post('/api/public/telegram/:id',{bodyLimit:32768,config:{rateLimit:{max:120,timeWindow:'1 minute'}}},async(req,reply)=>{
     const id=(req.params as {id:string}).id;
     const secret=req.headers['x-telegram-bot-api-secret-token'];
@@ -106,7 +110,7 @@ export async function buildApp(deps:AppDependencies={}) {
     const {collection}=z.object({collection:z.enum(Object.keys(reads) as [string,...string[]])}).parse(req.params);
     const query=z.object({id:z.string().uuid().optional(),jobId:z.string().uuid().optional(),projectId:z.string().uuid().optional(),conversationId:z.string().uuid().optional(),serverId:z.string().uuid().optional(),offset:z.coerce.number().int().min(0).max(100000).default(0),limit:z.coerce.number().int().min(1).max(500).default(100)}).strict().parse(req.query);
     const r=reads[collection]!;
-    let q=(req as any).wakeelContext.supabase.from(r.table).select(r.columns).order(r.order,{ascending:['messages','files','models'].includes(collection)}).range(query.offset,query.offset+query.limit-1);
+    let q=(req as any).wakeelContext.supabase.from(r.table).select(r.columns).order(r.order,{ascending:['files','models','steps'].includes(collection)}).range(query.offset,query.offset+query.limit-1);
     if(query.id)q=q.eq('id',query.id);
     if(query.jobId)q=q.eq('job_id',query.jobId);
     if(query.projectId)q=q.eq('project_id',query.projectId);

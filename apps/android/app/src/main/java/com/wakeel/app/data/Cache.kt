@@ -20,5 +20,14 @@ data class CachedFile(val owner: String, val projectId: String, val path: String
     @Query("DELETE FROM CachedFile WHERE owner = :owner AND projectId = :projectId AND path NOT IN (SELECT path FROM CachedFile WHERE owner = :owner AND projectId = :projectId ORDER BY savedAt DESC LIMIT 50)") suspend fun trim(owner: String, projectId: String)
     @Query("DELETE FROM CachedFile") suspend fun clear()
 }
-@Database(entities = [CachedRows::class, CachedFile::class], version = 2, exportSchema = false)
-abstract class WakeelDatabase : RoomDatabase() { abstract fun cache(): CacheDao; abstract fun files(): FileCacheDao }
+@Entity(primaryKeys = ["owner", "uri"])
+data class CachedMedia(val owner: String, val uri: String, val name: String, val mime: String, val size: Long, val metadata: String, val preview: String?, val savedAt: Long)
+@Dao interface MediaDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun save(media: CachedMedia)
+    @Query("SELECT * FROM CachedMedia WHERE owner = :owner ORDER BY savedAt DESC LIMIT 100") suspend fun files(owner: String): List<CachedMedia>
+    @Query("SELECT count(*) FROM CachedMedia WHERE owner = :owner") suspend fun count(owner: String): Int
+    @Query("DELETE FROM CachedMedia WHERE owner = :owner AND uri = :uri") suspend fun remove(owner: String, uri: String)
+    @Query("DELETE FROM CachedMedia") suspend fun clear()
+}
+@Database(entities = [CachedRows::class, CachedFile::class, CachedMedia::class], version = 3, exportSchema = false)
+abstract class WakeelDatabase : RoomDatabase() { abstract fun cache(): CacheDao; abstract fun files(): FileCacheDao; abstract fun media(): MediaDao }

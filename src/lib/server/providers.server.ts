@@ -90,7 +90,7 @@ export async function listModels(conn: ProviderConn): Promise<
 
 export interface ChatMessage {
   role: "system" | "user" | "assistant";
-  content: string;
+  content: string | ({type:"text";text:string}|{type:"image_url";image_url:{url:string;detail:"auto"}})[];
 }
 
 /** Starts a chat completion. Returns the raw upstream response (stream or JSON). */

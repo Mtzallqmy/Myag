@@ -1,6 +1,8 @@
 // Streaming chat gateway (SSE). Authenticates the bearer token, routes to a model,
 // streams the upstream provider response, applies bounded fallback, persists results.
 import { z } from "zod";
+import {hasCap} from "@/lib/ai/models";
+import {resolveVisionPreviews} from "./chat-media.server";
 import { checkQuota, logEvent } from "@/lib/server/guards.server";
 import { selectCandidates, type RoutableModel } from "@/lib/ai/routing";
 import { ROUTING_MODES, type RoutingMode } from "@/lib/ai/types";
@@ -12,6 +14,7 @@ const bodySchema = z.object({
   conversationId: z.string().uuid(),
   content: z.string().trim().min(1).max(32_000).optional(),
   retry: z.boolean().optional(),
+  imageIds: z.array(z.string().uuid()).max(4).optional(),
 });
 
 const SYSTEM_PROMPT =
@@ -45,6 +48,8 @@ export async function handleChat(request: Request): Promise<Response> {
           .maybeSingle();
         if (!convo) return json(404, { error: "NOT_FOUND" });
 
+        if (body.retry && body.imageIds?.length) return json(400,{error:"BAD_REQUEST"});
+        if (body.imageIds?.length) { try { await resolveVisionPreviews(body.imageIds,userId); } catch { return json(400,{error:"INVALID_ATTACHMENT"}); } }
         if (body.retry) {
           // Remove trailing non-user messages (failed/cancelled answer) before regenerating.
           const { data: last } = await supabase
@@ -60,14 +65,15 @@ export async function handleChat(request: Request): Promise<Response> {
           }
           if (toDelete.length) await supabase.from("messages").delete().in("id", toDelete);
         } else if (body.content) {
-          await supabase
+          const inserted = await supabase
             .from("messages")
-            .insert({ conversation_id: convo.id, user_id: userId, role: "user", content: body.content });
+            .insert({ conversation_id: convo.id, user_id: userId, role: "user", content: body.content, metadata_json: {image_ids:body.imageIds??[]} });
+          if(inserted.error) return json(500,{error:"PERSIST_FAILED"});
         }
 
         const { data: history } = await supabase
           .from("messages")
-          .select("role, content, status")
+          .select("role, content, status, metadata_json")
           .eq("conversation_id", convo.id)
           .order("created_at", { ascending: false })
           .limit(40);
@@ -78,7 +84,20 @@ export async function handleChat(request: Request): Promise<Response> {
             .filter((m) => (m.role === "user" || m.role === "assistant") && m.content && m.status !== "ERROR")
             .map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
         ];
-        const firstUser = messages.find((m) => m.role === "user")?.content ?? "";
+        const firstContent = messages.find((m) => m.role === "user")?.content;
+        const firstUser = typeof firstContent === "string" ? firstContent : "";
+        const latestUser = [...(history??[])].reverse().find(m=>m.role==="user");
+        const meta = latestUser?.metadata_json as {image_ids?:unknown}|null;
+        const parsedIds = z.array(z.string().uuid()).max(4).safeParse(meta?.image_ids??[]);
+        const imageIds = parsedIds.success ? parsedIds.data : [];
+        if(imageIds.length){
+          try {
+            const parts = await resolveVisionPreviews(imageIds,userId);
+            let lastIndex = messages.length-1;
+            while(lastIndex>=0 && messages[lastIndex]!.role!=="user")lastIndex--;
+            if(lastIndex>=0 && Array.isArray(parts)) messages[lastIndex] = {role:"user",content:[{type:"text",text:String(messages[lastIndex]!.content)},...parts]};
+          } catch { return json(409,{error:"ATTACHMENT_UNAVAILABLE"}); }
+        }
 
         // Routing
         const [{ data: pref }, { data: providers }, { data: models }] = await Promise.all([
@@ -100,13 +119,13 @@ export async function handleChat(request: Request): Promise<Response> {
         const blockedProviders = new Set(ks?.enabled && ks.target ? [ks.target] : []);
         const candidates = selectCandidates({
           mode,
-          models: (models ?? []) as RoutableModel[],
+          models: ((models ?? []) as RoutableModel[]).filter(m=>!imageIds.length || hasCap(m,"vision")),
           providers: (providers ?? []).filter((p) => !blockedProviders.has(p.id) && !providerKillAll),
           preferredModelId: convo.active_model_id ?? pref?.preferred_model_id ?? null,
           fallbackEnabled: pref?.fallback_enabled ?? true,
         });
         if (candidates.length === 0) {
-          return json(409, { error: mode === "MANUAL" ? "NO_MODEL_SELECTED" : "NO_MODELS_AVAILABLE" });
+          return json(409, { error: imageIds.length ? "NO_VISION_MODEL_AVAILABLE" : mode === "MANUAL" ? "NO_MODEL_SELECTED" : "NO_MODELS_AVAILABLE" });
         }
 
         const { data: assistant } = await supabase

@@ -97,3 +97,30 @@ The user explicitly requested a tester APK before device/performance acceptance 
 | RTL/theme/settings/offline cache | Compose/Navigation, Room, DataStore | Implemented | Device accessibility/reconnection/performance pending |
 
 Native sources are under apps/android/app/src/main/java/com/wakeel/app/. Markwon uses native TextView for Markdown; no WebView, Flutter, React Native or Capacitor executes the main UI.
+
+## Beta 4 delta (2026-10-10)
+
+The baseline table above describes initial extraction. This delta records the current native implementation; it does not mark full migration complete.
+
+| Feature | Reused original | New native/backend implementation | Status and executed verification |
+|---|---|---|---|
+| Local file recognition/processing | Room file cache/LocalSearch from Beta 3 | core/FileInspector, feature/Enhancements.LocalWorkspace, data/WakeelRepository | Native implementation built; 3 file-inspection + 2 search tests passed; SAF/UI/device acceptance pending |
+| Model filtering/prices | src/lib/ai/models.ts, routing.ts, provider discovery | core/ModelCatalog, ModelBrowser, shared price normalization fix | Native catalog test + backend normalization test passed; actual provider discovery/reply pending |
+| Chat/code/attachments/transitions | Existing SSE session/repository/Markwon | MainActivity.Chat/Message, LocalWorkspace attachment review | Compiled/Lint passed, parser tests passed; real stream/device/UI acceptance pending |
+| ZIP project import | projects/archive.ts, operations/projects.server.ts, private archives/chunks | services/api/src/zip-import.ts, ZipImport + explicit SAF upload | Three ZIP integration tests passed (real bytes/bounds/traversal/symlink/bomb); live persisted import pending deployment |
+| Agent scheduling/progress/diffs | Existing agent/policy/roles/runtime/queue/approvals | TaskControls, TaskDetail, capabilities + owned step/change/validation reads | Native implementation built and queue tests passed; worker deployment/real jobs/runtime acceptance pending; started steps interrupt safely rather than checkpoint resume |
+| Telegram bridge | Existing AES-GCM, provider gateway, quota/kill switches/conversations | telegram.ts + PostgreSQL metadata/secrets/inbox lease RPCs, TelegramScreen | Four policy/adapter/SQL/RLS tests passed. Live migration applied and grants checked; actual bot/model delivery pending |
+
+Android build/test/Lint/signing/manifest/ARM64 checks passed for source 05796afb16909f88bc8b8322accc2330995dbfa0. Details and deployment evidence: ANDROID_BETA_4_ACCEPTANCE.md. Legacy web source remains present. GitHub/MCP OAuth, full admin UX, original-history transfer, isolated runtime, complete checkpoint resume and device acceptance remain outstanding.
+
+### Beta 5 additions (2026-10-10)
+| Feature | Original/shared implementation | Native/API replacement | Verification |
+|---|---|---|---|
+| Model tests / full listing | providers operations, ai_models | Correct modelId; paged model list up to 3000 | API input validation; Android CI pending at source preparation |
+| Agent identity / connections | agent/roles.ts, existing queue | authenticated profiles API and uncached live diagnostics | API profiles/pipelines test executed |
+| Local image/video/PDF | new native support | MediaInspector platform decoders, SHA-256 streaming, Room metadata, persisted SAF access | compile/lint CI pending; device decoding not yet tested |
+| Private original uploads | new user attachments, separate from project chunks | Supabase bucket + owner RLS + scoped signed PUT, cancellation/progress | migration applied; quota/RLS/validators tested; signed upload live acceptance pending |
+| Vision chat | existing shared OpenAI-compatible gateway/routing | owned preview IDs, private URLs, vision capability gate, SSE | adapter/type checks; real provider response pending normal authenticated session |
+| Routing security | selectCandidates | preferred/manual selection must belong to usable models/providers | explicit disabled-provider/failed-model regression passed |
+
+Full video/audio transcription, full PDF text extraction, arbitrary local model execution, GitHub/MCP native feature parity and real runtime acceptance remain incomplete. Preview-based analysis is explicitly labelled; there are no simulated completions.

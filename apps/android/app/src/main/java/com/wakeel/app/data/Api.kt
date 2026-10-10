@@ -35,6 +35,10 @@ object NetworkModule {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("CREATE TABLE IF NOT EXISTS CachedFile (owner TEXT NOT NULL, projectId TEXT NOT NULL, path TEXT NOT NULL, content TEXT NOT NULL, savedAt INTEGER NOT NULL, PRIMARY KEY(owner, projectId, path))")
             }
+        }, object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS CachedMedia (owner TEXT NOT NULL, uri TEXT NOT NULL, name TEXT NOT NULL, mime TEXT NOT NULL, size INTEGER NOT NULL, metadata TEXT NOT NULL, preview TEXT, savedAt INTEGER NOT NULL, PRIMARY KEY(owner, uri))")
+            }
         }).build()
 }
 fun JsonObject.text(key: String): String = (get(key) as? JsonPrimitive)?.contentOrNull.orEmpty()

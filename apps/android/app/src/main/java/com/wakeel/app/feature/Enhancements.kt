@@ -50,7 +50,8 @@ private fun UiState.words(ar: String, en: String) = if (english) en else ar
             listOf("ALL" to state.words("كل القدرات", "All capabilities"), "tool_calling" to state.words("أدوات", "Tools"), "reasoning" to state.words("تفكير", "Reasoning"), "vision" to state.words("صور", "Vision"), "structured_output" to "JSON").forEach { (id, name) -> FilterChip(selected = capability == id, onClick = { capability = id }, label = { Text(name) }) }
         }
         Row { TextButton(onClick = { sort = "NAME" }) { Text(state.words("الاسم", "Name")) }; TextButton(onClick = { sort = "PRICE" }) { Text(state.words("السعر", "Price")) }; TextButton(onClick = { sort = "CONTEXT" }) { Text(state.words("السياق", "Context")) } }
-        val models = ModelCatalog.filter(state.rows["models"].orEmpty(), query, price, capability, sort)
+        val source = state.rows["models"].orEmpty()
+        val models = remember(source, query, price, capability, sort) { ModelCatalog.filter(source, query, price, capability, sort) }
         Text("${models.size} " + state.words("نموذج · القدرات قد تكون مستنتجة", "models · capabilities may be inferred"), style = MaterialTheme.typography.bodySmall)
         LazyColumn(Modifier.weight(1f, fill = false), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(models, key = { it.text("id") }) { model -> Card(onClick = { onSelect(model) }, modifier = Modifier.fillMaxWidth()) {
@@ -161,5 +162,40 @@ private fun UiState.words(ar: String, en: String) = if (english) en else ar
         Text(if (uri != null) state.words("تم اختيار ملف", "File selected") else state.words("لم تختر ملفًا", "No file selected"))
         Button(onClick = { uri?.let { vm.importZip(name, it) } }, enabled = uri != null && name.isNotBlank() && !state.busy) { Text(state.words("أوافق على الرفع والاستيراد", "Confirm upload and import")) }
         if (state.busy) LinearProgressIndicator(Modifier.fillMaxWidth()); state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }; state.notice?.let { Text(it) }; if (state.result.isNotEmpty()) Text(state.result)
+    }
+}
+
+@Composable fun Connections(state: UiState, vm: WakeelViewModel, onProjects: () -> Unit) {
+    LaunchedEffect(Unit) { vm.connections() }
+    val labels = mapOf("API" to state.words("الخادم وقاعدة البيانات", "API and database"), "PROVIDERS" to state.words("المزودون الفعليون", "Real providers"), "MODELS" to state.words("النماذج المكتشفة", "Discovered models"), "WORKER" to state.words("مشغّل الوكيل", "Agent worker"), "AGENTS" to state.words("أدوار الوكلاء", "Agent roles"), "TELEGRAM" to state.words("تليجرام", "Telegram"))
+    LazyColumn(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        item { Text(state.words("الوكلاء والاتصالات", "Agents and connections"), style = MaterialTheme.typography.headlineSmall)
+            Text(state.words("الفحص يتصل بالخادم فعلًا ولا يستخدم بيانات Room المحفوظة. ظهور نموذج في القائمة لا يثبت أنه يجيب؛ اختبره قبل استخدامه.", "Checks contact the server without Room fallback. A model listing does not prove it responds; test it before use."))
+            Button(onClick = { vm.connections() }, enabled = !state.busy) { Text(state.words("فحص مباشر", "Check live")) }
+            if (state.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
+            state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            state.notice?.let { Text(it) }
+            if (state.result.isNotEmpty()) SelectionContainer { Text(state.result, style = MaterialTheme.typography.bodySmall) }
+        }
+        items(state.connections.entries.toList(), key = { it.key }) { (name, value) ->
+            val check = value.jsonObject; val data = check["data"]
+            Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(labels[name].orEmpty(), style = MaterialTheme.typography.titleMedium)
+                Text(check.text("status") + " · " + check.text("latency_ms") + " ms")
+                if (check.text("error").isNotEmpty()) Text(check.text("error"), color = MaterialTheme.colorScheme.error)
+                if (name == "WORKER") {
+                    val caps = data as? JsonObject
+                    if (caps != null) { Text("API " + caps.text("version")); Text(if (caps["agent_worker"]?.jsonPrimitive?.booleanOrNull == true) state.words("مشغّل الخادم مفعّل", "Server worker enabled") else state.words("مشغّل الخادم معطّل؛ لا يمكن تنفيذ المهام", "Server worker disabled; tasks cannot execute")); Text(if (caps["runtime"]?.jsonPrimitive?.booleanOrNull == true) state.words("Runtime مُعد؛ نجاح الاختبارات يحتاج نتيجة تشغيل", "Runtime configured; tests require actual results") else state.words("Runtime غير متاح؛ لا تنفيذ اختبارات مشاريع", "Runtime unavailable; no project test execution")) }
+                    else Text(state.words("الخادم الحالي يحتاج تحديثًا؛ حالة العامل غير متحققة.", "Backend upgrade required; worker status is unverified."))
+                }
+                if (data is JsonArray) {
+                    Text("${data.size} " + state.words("عنصر متاح في هذه الصفحة", "items in this page"))
+                    if (name == "PROVIDERS") data.forEach { item -> val provider = item.jsonObject; Text(provider.text("name") + " · " + provider.text("status")); TextButton(onClick = { vm.operation("testProvider", payload("id" to provider.text("id"))) }, enabled = !state.busy) { Text(state.words("اختبار اتصال المزود واكتشافه فعليًا", "Test provider connection and discovery")) } }
+                }
+                if (name == "AGENTS" && data is JsonObject) (data["roles"] as? JsonArray)?.forEach { role -> val r = role.jsonObject; Text(r.text("id"), style = MaterialTheme.typography.titleSmall); Text(r.text("purpose")); Text(state.words("توجيه: ", "Routing: ") + r.text("routing") + " · " + r.text("stepLimit")) }
+            } }
+        }
+        item { OutlinedButton(onClick = onProjects) { Text(state.words("اختيار مشروع وتشغيل مهمة", "Choose project and run task")) }
+            Text(state.words("الوكيل يقرأ المشروع ويخطط وينتج تعديلات عبر نماذجك، بأدوار محددة. التغييرات وGitHub تتطلب الموافقة. تنفيذ المشروع واختباراته يحتاج Runtime منفصلًا معزولًا.", "The agent reads, plans and proposes patches through your models using bounded roles. Changes and GitHub actions require approval. Executing/testing project code requires an isolated external runtime.")) }
     }
 }
