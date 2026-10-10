@@ -1,5 +1,5 @@
 import {AGENT_ROLES,ROLE_DEFS,pipelineFor} from "@/lib/agent/roles";
-import Fastify, {type FastifyRequest} from 'fastify';
+import Fastify, {LogController,type FastifyRequest} from 'fastify';
 import cors from '@fastify/cors';
 import rateLimit from '@fastify/rate-limit';
 import {Readable} from 'node:stream';
@@ -62,7 +62,7 @@ export interface AppDependencies {
   ready?:()=>Promise<boolean>;
 }
 export async function buildApp(deps:AppDependencies={}) {
-  const app=Fastify({bodyLimit:5*1024*1024,disableRequestLogging:true,logger:{level:'info',redact:['req.headers.authorization','req.headers.cookie','body','response.headers.set-cookie']}});
+  const app=Fastify({bodyLimit:5*1024*1024,logController:new LogController({disableRequestLogging:true}),logger:{level:'info',redact:['req.headers.authorization','req.headers.cookie','body','response.headers.set-cookie']}});
   await app.register(cors,{origin:process.env['CORS_ORIGINS']?.split(',').filter(Boolean) ?? false});
   await app.register(rateLimit,{max:60,timeWindow:'1 minute'});
   const authenticate=deps.authenticate ?? getUserFromRequest;
@@ -79,7 +79,7 @@ export async function buildApp(deps:AppDependencies={}) {
     req.log.warn({event:'request_failed',code,requestId:req.id});
     reply.code(code==='BAD_REQUEST'?400:code==='RATE_LIMITED'?429:code==='PAYLOAD_TOO_LARGE'?413:500).send({ok:false,error:code});
   });
-  app.get('/health/live',async()=>({status:'ok'}));
+  app.get('/health/live',async()=>({status:'ok',version:'0.6.0'}));
   app.get('/v1/capabilities',async()=>({ok:true,data:{version:'0.6.0',telegram:true,zip_import:true,media_upload:true,vision_chat:true,agent_worker:process.env['WAKEEL_WORKER_ENABLED']==='true',runtime:Boolean(process.env['AGENT_RUNTIME_BASE_URL']&&process.env['AGENT_RUNTIME_SHARED_SECRET'])}}));
   app.get('/v1/agent/profiles',async()=>({ok:true,data:{roles:AGENT_ROLES.map(id=>({id,...ROLE_DEFS[id]})),pipelines:Object.fromEntries((['FAST','BALANCED','DEEP','MULTI'] as const).map(depth=>[depth,pipelineFor(depth)])),execution:'SERVER_QUEUE',worker_enabled:process.env['WAKEEL_WORKER_ENABLED']==='true'}}));
   app.post('/api/public/telegram/:id',{bodyLimit:32768,config:{rateLimit:{max:120,timeWindow:'1 minute'}}},async(req,reply)=>{

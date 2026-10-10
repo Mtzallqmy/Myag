@@ -77,3 +77,10 @@ test('integration operations stop at caller-scoped ownership before accessing se
  }
  assert.deepEqual(calls,['github_connections','mcp_servers','mcp_tools']);
 });
+
+test('malformed protected URLs fail closed without credentials or DB access',async t=>{
+ const a=await app(t,{authenticate:async()=>null});
+ for(const url of ['/v1/data/%ZZ','/v1/operations/%E0%A4%A']){
+  const r=await a.inject({method:'GET',url});assert.ok([400,401,404].includes(r.statusCode));assert.equal(r.body.includes('service_role'),false);
+ }
+});
