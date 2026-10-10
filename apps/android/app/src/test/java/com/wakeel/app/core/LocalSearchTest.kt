@@ -16,6 +16,6 @@ class LocalSearchTest {
         assertTrue(LocalSearch.find(files, " ").isEmpty())
         assertEquals(200, LocalSearch.find(files, "match").size)
         assertTrue(LocalSearch.find(files, "absent").isEmpty())
-        assertEquals(240, LocalSearch.find(listOf("a.txt" to "x".repeat(500)), "x").first().preview.length)
+        assertEquals(240, LocalSearch.find(listOf("a.kt" to "x".repeat(500)), "x").first().preview.length)
     }
 }
