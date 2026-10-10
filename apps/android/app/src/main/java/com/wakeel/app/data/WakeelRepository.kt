@@ -27,12 +27,20 @@ class WakeelRepository @Inject constructor(private val api: WakeelApi, private v
     private var owner = ""
     suspend fun restore(): Boolean { session = store.read(); owner = session?.user?.id.orEmpty(); if (session == null) return false; return try { token(); true } catch (e: ApiFailure) { if (e.code == "SESSION_EXPIRED") clear(); false } catch (_: Exception) { true } }
     suspend fun login(email: String, password: String) {
-        val data = checked(api.post("v1/auth/login", payload("email" to email.trim(), "password" to password))) as JsonObject
+        val response = try { api.post("v1/auth/login", payload("email" to email.trim(), "password" to password)) } catch (e: HttpException) {
+            if (e.code() == 401) throw ApiFailure("LOGIN_FAILED")
+            throw e
+        }
+        val data = checked(response) as JsonObject
         session = json.decodeFromJsonElement<Session>(data); store.save(session!!); owner = data["user"]?.jsonObject?.text("id").orEmpty()
     }
     suspend fun signup(email: String, password: String) {
         // Publishable project key; never a service-role/server key.
         api.signup("https://ywtfvgkhrmouqxsocgdq.supabase.co/auth/v1/signup", "sb_publishable_q_GnsHqOuoY1gcVvMraQ-Q_E4JLk9Zb", payload("email" to email.trim(), "password" to password))
+    }
+    suspend fun changePassword(password: String) {
+        require(password.length >= 8)
+        api.updateUser("https://ywtfvgkhrmouqxsocgdq.supabase.co/auth/v1/user", "sb_publishable_q_GnsHqOuoY1gcVvMraQ-Q_E4JLk9Zb", "Bearer ${token()}", payload("password" to password))
     }
     private fun checked(result: JsonObject): JsonElement {
         if (result["ok"]?.jsonPrimitive?.booleanOrNull == false) throw ApiFailure(result.text("error"))

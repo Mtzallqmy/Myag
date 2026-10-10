@@ -13,6 +13,7 @@ import javax.inject.Inject
 
 data class UiState(
     val restoring: Boolean = true, val authenticated: Boolean = false, val busy: Boolean = false,
+    val locked: Boolean = false, val pinEnabled: Boolean = false,
     val error: String? = null, val notice: String? = null, val dark: Boolean = true, val english: Boolean = false,
     val rows: Map<String, List<JsonObject>> = emptyMap(), val offline: Boolean = false,
     val conversation: String? = null, val messages: List<JsonObject> = emptyList(), val streaming: Boolean = false,
@@ -24,9 +25,9 @@ class WakeelViewModel @Inject constructor(private val repository: WakeelReposito
     private val mutable = MutableStateFlow(UiState())
     val state = mutable.asStateFlow()
     private var chatJob: Job? = null
-    init { viewModelScope.launch { val restored = repository.restore(); mutable.update { it.copy(restoring = false, authenticated = restored, dark = !settings.setting("light"), english = settings.setting("english")) } } }
+    init { viewModelScope.launch { val restored = repository.restore(); val pin = settings.hasPin(); mutable.update { it.copy(restoring = false, authenticated = restored, locked = restored && pin, pinEnabled = pin, dark = !settings.setting("light"), english = settings.setting("english")) } } }
     private fun work(block: suspend () -> Unit) = viewModelScope.launch {
-        if (mutable.value.busy) return@launch
+        if (mutable.value.busy || mutable.value.locked) return@launch
         mutable.update { it.copy(busy = true, error = null, notice = null) }
         try { block() } catch (e: CancellationException) { throw e } catch (e: Exception) { failure(e) }
         finally { mutable.update { it.copy(busy = false) } }
@@ -38,6 +39,16 @@ class WakeelViewModel @Inject constructor(private val repository: WakeelReposito
     }
     fun login(email: String, password: String) = work { repository.login(email, password); mutable.update { UiState(restoring = false, authenticated = true, busy = true, dark = it.dark, english = it.english) } }
     fun signup(email: String, password: String) = work { repository.signup(email, password); mutable.update { it.copy(notice = "تحقق من بريدك لتفعيل الحساب، ثم سجّل الدخول / Check email, then sign in") } }
+    fun setPin(pin: String) = work { settings.setPin(pin); mutable.update { it.copy(pinEnabled = true, locked = true, notice = "تم تفعيل الرمز الداخلي / App PIN enabled") } }
+    fun lock() { if (mutable.value.authenticated && mutable.value.pinEnabled) { stop(); mutable.update { it.copy(locked = true, error = null, notice = null) } } }
+    fun unlock(pin: String) = viewModelScope.launch {
+        if (mutable.value.busy || !mutable.value.locked) return@launch
+        mutable.update { it.copy(busy = true, error = null) }
+        try { if (settings.unlock(pin)) mutable.update { it.copy(locked = false) } else mutable.update { it.copy(error = "PIN_FAILED") } }
+        finally { mutable.update { it.copy(busy = false) } }
+    }
+    fun resetLockedSession() = viewModelScope.launch { stop(); repository.clear(); mutable.update { UiState(restoring = false, dark = it.dark, english = it.english) } }
+    fun changePassword(password: String) = work { repository.changePassword(password); mutable.update { it.copy(notice = "تم تغيير كلمة مرور الحساب / Account password updated") } }
     fun logout() = work { chatJob?.cancel(); try { repository.logout() } finally { mutable.value = UiState(restoring = false, dark = mutable.value.dark, english = mutable.value.english) } }
     fun theme() { mutable.update { it.copy(dark = !it.dark) }; viewModelScope.launch { settings.setting("light", !mutable.value.dark) } }
     fun language() { mutable.update { it.copy(english = !it.english) }; viewModelScope.launch { settings.setting("english", mutable.value.english) } }
@@ -49,7 +60,7 @@ class WakeelViewModel @Inject constructor(private val repository: WakeelReposito
     fun openChat(id: String?) { stop(); mutable.update { it.copy(conversation = id, messages = emptyList(), draftReply = "", error = null, model = "") }; if (id != null) refreshMessages() }
     private fun refreshMessages() = work { val id = mutable.value.conversation ?: return@work; val rows = repository.rows("messages", "?conversationId=$id&limit=500"); mutable.update { it.copy(messages = rows.data, offline = rows.offline) } }
     fun send(content: String?, retry: Boolean = false) {
-        if (mutable.value.streaming || (!retry && content.isNullOrBlank())) return
+        if (mutable.value.locked || mutable.value.streaming || (!retry && content.isNullOrBlank())) return
         chatJob = viewModelScope.launch {
             mutable.update { it.copy(streaming = true, draftReply = "", error = null, notice = null) }
             try {

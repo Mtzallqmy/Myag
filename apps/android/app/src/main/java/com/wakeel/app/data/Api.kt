@@ -18,6 +18,7 @@ import javax.inject.Singleton
 import java.util.concurrent.TimeUnit
 
 interface WakeelApi {
+    @PUT suspend fun updateUser(@Url url: String, @Header("apikey") key: String, @Header("Authorization") auth: String, @Body body: JsonObject): JsonObject
     @POST suspend fun signup(@Url url: String, @Header("apikey") key: String, @Body body: JsonObject): JsonObject
     @GET @Headers("Accept: application/json") suspend fun get(@Url path: String, @Header("Authorization") auth: String): JsonObject
     @POST @Headers("Accept: application/json") suspend fun post(@Url path: String, @Body body: JsonObject, @Header("Authorization") auth: String? = null): JsonObject

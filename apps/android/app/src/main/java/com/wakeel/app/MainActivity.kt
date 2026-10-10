@@ -45,6 +45,7 @@ class MainActivity : ComponentActivity() {
             OneTimeWorkRequestBuilder<HealthWorker>().setConstraints(androidx.work.Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()).build())
         setContent { Wakeel(viewModel) }
     }
+    override fun onStop() { viewModel.lock(); super.onStop() }
 }
 
 private fun UiState.label(ar: String, en: String) = if (english) en else ar
@@ -57,32 +58,69 @@ private fun UiState.label(ar: String, en: String) = if (english) en else ar
             Surface(Modifier.fillMaxSize()) {
                 when { state.restoring -> Box(Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.Center) { CircularProgressIndicator() }
                     !state.authenticated -> Login(state, vm)
+                    state.locked -> AppLock(state, vm)
                     else -> Shell(state, vm) }
             }
         }
     }
 }
 @Composable private fun Login(state: UiState, vm: WakeelViewModel) {
-    var email by rememberSaveable { mutableStateOf("") }
+    var email by rememberSaveable { mutableStateOf("mtzallqmy@gmail.com") }
     var password by remember { mutableStateOf("") }
+    var visible by remember { mutableStateOf(false) }
     Column(Modifier.safeDrawingPadding().imePadding().padding(28.dp).verticalScroll(rememberScrollState()).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(20.dp)) {
         Spacer(Modifier.height(36.dp))
         Text("وكيل", fontSize = 46.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
         Text(state.label("مساحتك للبرمجة والذكاء الاصطناعي", "Your AI coding workspace"), style = MaterialTheme.typography.titleMedium)
-        Text("ANDROID · 0.1.0 BETA", color = MaterialTheme.colorScheme.secondary)
+        Text("ANDROID · ${BuildConfig.VERSION_NAME}", color = MaterialTheme.colorScheme.secondary)
         OutlinedTextField(email, { email = it }, label = { Text(state.label("البريد الإلكتروني", "Email")) }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email), modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(password, { password = it }, label = { Text(state.label("كلمة المرور", "Password")) }, visualTransformation = PasswordVisualTransformation(), singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password), modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(password, { password = it }, label = { Text(state.label("كلمة المرور", "Password")) }, visualTransformation = if (visible) VisualTransformation.None else PasswordVisualTransformation(), trailingIcon = { TextButton(onClick = { visible = !visible }) { Text(state.label(if (visible) "إخفاء" else "إظهار", if (visible) "Hide" else "Show")) } }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password), modifier = Modifier.fillMaxWidth())
         Button(onClick = { vm.login(email, password) }, enabled = !state.busy && email.isNotBlank() && password.isNotBlank(), modifier = Modifier.fillMaxWidth().height(52.dp)) { Text(state.label("تسجيل الدخول", "Sign in")) }
         TextButton(onClick = { vm.signup(email, password) }, enabled = !state.busy && email.contains('@') && password.length >= 8) { Text(state.label("إنشاء حساب بهذا البريد", "Create account with this email")) }
-        Text(state.label("قد يتطلب الحساب الجديد تأكيد البريد. هذه نسخة أولية؛ بعض الميزات ما زالت قيد النقل.", "Email confirmation may be required. This is an early beta with incomplete feature migration."), style = MaterialTheme.typography.bodySmall)
+        Text(state.label("حساب المالك مؤكَّد بالفعل. سجّل الدخول مرة واحدة، ثم عيّن رمز القفل الداخلي من المزيد. الحسابات الجديدة قد تتطلب تأكيد البريد.", "The owner account is already confirmed. Sign in once, then set an app PIN in More. New accounts may require email confirmation."), style = MaterialTheme.typography.bodySmall)
         Status(state)
     }
 }
 @Composable private fun Status(state: UiState) {
     if (state.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
-    state.error?.let { Text(state.label("تعذّر الطلب: ", "Request failed: ") + it, color = MaterialTheme.colorScheme.error) }
+    state.error?.let { code -> Text(when (code) {
+        "LOGIN_FAILED" -> state.label("البريد أو كلمة المرور غير صحيحة. إنشاء الحساب مجددًا لا يغيّر كلمة مروره. استخدم كلمة المرور الجديدة التي أُعطيت لك.", "Incorrect email or password. Creating the account again does not change its password.")
+        "PIN_FAILED" -> state.label("الرمز غير صحيح. بعد 5 محاولات انتظر 30 ثانية.", "Incorrect PIN. After 5 attempts, wait 30 seconds.")
+        "SESSION_EXPIRED", "HTTP_401" -> state.label("انتهت الجلسة؛ سجّل الدخول مجددًا.", "Session expired. Sign in again.")
+        "HTTP_429" -> state.label("طلبات كثيرة؛ انتظر قليلًا ثم أعد المحاولة.", "Too many requests. Wait, then retry.")
+        else -> state.label("تعذّر الطلب: ", "Request failed: ") + code
+    }, color = MaterialTheme.colorScheme.error) }
     state.notice?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
     if (state.offline) Text(state.label("غير متصل · بيانات محفوظة للقراءة", "Offline · cached read-only data"), color = MaterialTheme.colorScheme.secondary)
+}
+@Composable private fun AppLock(state: UiState, vm: WakeelViewModel) {
+    var pin by remember { mutableStateOf("") }
+    Column(Modifier.safeDrawingPadding().imePadding().padding(28.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+        Text("وكيل", style = MaterialTheme.typography.headlineLarge)
+        Text(state.label("فتح التطبيق بالرمز الداخلي", "Unlock with your app PIN"))
+        OutlinedTextField(pin, { pin = it.filter { c -> c in '0'..'9' }.take(12) }, label = { Text(state.label("الرمز الداخلي", "App PIN")) }, visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword), singleLine = true)
+        Button(onClick = { vm.unlock(pin); pin = "" }, enabled = !state.busy && pin.length >= 6) { Text(state.label("فتح", "Unlock")) }
+        TextButton(onClick = { vm.resetLockedSession() }, enabled = !state.busy) { Text(state.label("نسيت الرمز؟ امسح الجلسة وسجّل الدخول", "Forgot PIN? Clear session and sign in")) }
+        Status(state)
+    }
+}
+@Composable private fun SecuritySettings(state: UiState, vm: WakeelViewModel) {
+    var action by remember { mutableStateOf<String?>(null) }
+    var value by remember { mutableStateOf("") }
+    var confirmation by remember { mutableStateOf("") }
+    OutlinedButton(onClick = { action = "pin" }) { Text(state.label(if (state.pinEnabled) "تغيير الرمز الداخلي" else "تعيين رمز داخلي", "Set / change app PIN")) }
+    OutlinedButton(onClick = { action = "password" }) { Text(state.label("تعيين كلمة مرور جديدة للحساب", "Set a new account password")) }
+    action?.let { current ->
+        val pin = current == "pin"
+        val valid = value == confirmation && if (pin) com.wakeel.app.core.PinVerifier.valid(value) else value.length >= 8
+        AlertDialog(onDismissRequest = { action = null; value = ""; confirmation = "" }, title = { Text(state.label(if (pin) "رمز داخلي من 6 إلى 12 رقمًا" else "كلمة مرور الحساب", if (pin) "App PIN: 6–12 digits" else "Account password")) }, text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(state.label(if (pin) "يقفل هذا الهاتف عند مغادرة التطبيق. يظل الخادم محميًا بجلسة مشفّرة." else "اختر كلمة مرور جديدة من 8 أحرف على الأقل. لا تُحفظ في التطبيق.", if (pin) "Locks this device when you leave the app. The server session stays encrypted." else "Choose at least 8 characters. The password is not saved in the app."))
+                OutlinedTextField(value, { value = if (pin) it.filter { c -> c in '0'..'9' }.take(12) else it }, label = { Text(state.label("الرمز الجديد", "New secret")) }, visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = if (pin) KeyboardType.NumberPassword else KeyboardType.Password), singleLine = true)
+                OutlinedTextField(confirmation, { confirmation = if (pin) it.filter { c -> c in '0'..'9' }.take(12) else it }, label = { Text(state.label("تأكيد", "Confirm")) }, visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = if (pin) KeyboardType.NumberPassword else KeyboardType.Password), singleLine = true)
+            }
+        }, confirmButton = { TextButton(onClick = { if (pin) vm.setPin(value) else vm.changePassword(value); action = null; value = ""; confirmation = "" }, enabled = valid && !state.busy) { Text(state.label("حفظ", "Save")) } }, dismissButton = { TextButton(onClick = { action = null; value = ""; confirmation = "" }) { Text(state.label("إلغاء", "Cancel")) } })
+    }
 }
 @Composable private fun Shell(state: UiState, vm: WakeelViewModel) {
     val nav = rememberNavController()
@@ -93,7 +131,7 @@ private fun UiState.label(ar: String, en: String) = if (english) en else ar
         Row(Modifier.statusBarsPadding().fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp), horizontalArrangement = Arrangement.SpaceBetween) {
             Text("وكيل", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
             if (route !in tabs.map { it.first }) TextButton(onClick = { vm.stop(); nav.popBackStack() }) { Text(state.label("رجوع", "Back")) }
-            else Text("BETA 1", color = MaterialTheme.colorScheme.secondary, fontSize = 12.sp)
+            else Text("BETA 2", color = MaterialTheme.colorScheme.secondary, fontSize = 12.sp)
         }
     }, bottomBar = {
         if (route != "chat") NavigationBar {
@@ -123,6 +161,7 @@ private fun UiState.label(ar: String, en: String) = if (english) en else ar
                         OutlinedButton(onClick = { nav.navigate(row.first) }, modifier = Modifier.fillMaxWidth()) { Text(state.label(row.second, row.third)) }
                     }
                     item { Row { TextButton(onClick = { vm.theme() }) { Text(state.label("ليلي / نهاري", "Dark / light")) }; TextButton(onClick = { vm.language() }) { Text("العربية / English") } } }
+                    item { SecuritySettings(state, vm) }
                     item { OutlinedButton(onClick = { vm.logout() }) { Text(state.label("تسجيل الخروج", "Sign out")) } }
                     item { Status(state) }
                 }
