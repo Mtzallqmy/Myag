@@ -11,3 +11,6 @@ Android Gradle/unit/lint/assembly, actual APK signature verification, real stora
 Known limits: 50MiB original uploads, 1MiB vision preview, four attached previews, 100 local media entries, 50/500MiB cloud records/verified bytes with 50MiB reserved per pending URL. Video preview covers one keyframe (API 27+), PDF preview one page. No whole-video/audio/full-PDF extraction. Cloud deletion waits two hours for signed upload expiration; no automatic purge.
 
 Auth test limitation: automatic approval review rejected creating/redeeming an admin magic link for the existing owner as an authentication bypass. This flow was not retried. Provider-response testing must use normal authenticated access; account authorization is preserved.
+
+Android CI run 38072034458 / job 114271239652 completed SUCCESS: Kotlin unit tests, lint and release assembly, v1/v2 signature checks, zipalign with 16KiB alignment, min API26/target36 and native-library arm64-v8a-only checks. Tester prerelease beta.5 published from source 1fbf87f16aeaf1883813271d977988234ff2826f. Physical installation and actual media decoding remain untested.
+API + legacy CI run 38072034455 completed SUCCESS including legacy web build.

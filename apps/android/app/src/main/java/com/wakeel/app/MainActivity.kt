@@ -142,7 +142,7 @@ private fun UiState.label(ar: String, en: String) = if (english) en else ar
         Row(Modifier.statusBarsPadding().fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp), horizontalArrangement = Arrangement.SpaceBetween) {
             Text("وكيل", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
             if (route !in tabs.map { it.first }) TextButton(onClick = { vm.stop(); nav.popBackStack() }) { Text(state.label("رجوع", "Back")) }
-            else Text("BETA 5", color = MaterialTheme.colorScheme.secondary, fontSize = 12.sp)
+            else Text("BETA 6", color = MaterialTheme.colorScheme.secondary, fontSize = 12.sp)
         }
     }, bottomBar = {
         if (route != "chat") NavigationBar {
@@ -174,6 +174,8 @@ private fun UiState.label(ar: String, en: String) = if (english) en else ar
             composable("providers") { Providers(state, vm) }
             composable("local") { LocalWorkspace(state, vm) { nav.navigate("chat") } }
             composable("connections") { Connections(state, vm) { vm.load("projects"); nav.navigate("projects") } }
+            composable("github") { GithubWorkspace(state, vm) { vm.load("projects"); nav.navigate("projects") } }
+            composable("mcp") { McpWorkspace(state, vm) }
             composable("telegram") { TelegramScreen(state, vm) }
             composable("zipImport") { ZipImport(state, vm) }
             composable("taskDetail") { TaskDetail(state, vm) { nav.navigate("approvals") } }
@@ -189,7 +191,7 @@ private fun UiState.label(ar: String, en: String) = if (english) en else ar
                     item { Status(state) }
                 }
             }
-            listOf("conversations", "projects", "jobs", "github", "mcp", "memory", "notifications", "history", "approvals").forEach { collection -> composable(collection) {
+            listOf("conversations", "projects", "jobs", "memory", "notifications", "history", "approvals").forEach { collection -> composable(collection) {
                 Collection(state, vm, collection) { row -> when (collection) {
                     "conversations" -> { vm.openChat(row.text("id").takeIf { it.isNotBlank() }); nav.navigate("chat") }
                     "projects" -> { vm.openProject(row.text("id")); nav.navigate("project") }

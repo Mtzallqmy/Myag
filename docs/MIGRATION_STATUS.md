@@ -46,3 +46,5 @@ This is a published tester beta, not complete legacy feature parity. Full starte
 
 ## Beta 5 work
 API 0.6 and native media/diagnostic improvements are prepared. Supabase private attachment migration applied. API 27 tests / legacy 71 tests executed successfully locally; Android build and live deployment acceptance pending. See ANDROID_BETA_5_ACCEPTANCE.md for precise limits and verification updates.
+
+Beta 5 Android CI 38072034458 and API/legacy CI 38072034455 succeeded and beta.5 tester prerelease exists. Beta 6 adds usable GitHub/MCP connection and tool screens, pending Android build verification. BotKeep source staging interrupted; rollback was requested. No upgraded production availability is claimed.

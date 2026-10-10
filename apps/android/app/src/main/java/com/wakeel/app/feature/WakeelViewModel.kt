@@ -30,7 +30,7 @@ data class UiState(
     val localFiles: List<CachedFile> = emptyList(), val localFile: CachedFile? = null, val inspection: FileInspection? = null,
     val localOutput: String? = null, val attachment: String = "", val routing: String = "AUTO",
     val mediaFiles: List<CachedMedia> = emptyList(), val media: CachedMedia? = null, val imageIds: List<String> = emptyList(),
-    val uploadProgress: Long = 0, val uploadTotal: Long = 0,
+    val oauthUrl: String? = null, val uploadProgress: Long = 0, val uploadTotal: Long = 0,
     val connections: JsonObject = JsonObject(emptyMap()), val capabilities: JsonObject = JsonObject(emptyMap()), val job: JsonObject? = null, val jobDetails: Map<String, List<JsonObject>> = emptyMap()
 )
 @HiltViewModel
@@ -142,6 +142,15 @@ class WakeelViewModel @Inject constructor(private val repository: WakeelReposito
             } finally { mutable.update { it.copy(uploadTotal = 0) } }
         }
     }
+    fun mcpOAuth(serverId: String) = work {
+        val result = repository.operation("startMcpOAuth", payload("serverId" to serverId)).jsonObject
+        val url = result.text("authorizeUrl")
+        val uri = Uri.parse(url)
+        if (uri.scheme != "https" || uri.host.isNullOrBlank()) throw ApiFailure("INVALID_AUTH_DESTINATION")
+        mutable.update { it.copy(oauthUrl = url) }
+    }
+    fun clearOAuth() { mutable.update { it.copy(oauthUrl = null) } }
+    fun browserUnavailable() { mutable.update { it.copy(error = "SYSTEM_BROWSER_UNAVAILABLE") } }
     fun connections() = work(queue = true) { val result = repository.connections(); mutable.update { it.copy(connections = result) } }
     fun capabilities() = work(queue = true) { val caps = repository.capabilities(); mutable.update { it.copy(capabilities = caps) } }
     fun openJob(job: JsonObject) { mutable.update { it.copy(job = job, jobDetails = emptyMap()) }; refreshJob() }

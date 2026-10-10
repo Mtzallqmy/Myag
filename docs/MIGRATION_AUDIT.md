@@ -124,3 +124,6 @@ Android build/test/Lint/signing/manifest/ARM64 checks passed for source 05796afb
 | Routing security | selectCandidates | preferred/manual selection must belong to usable models/providers | explicit disabled-provider/failed-model regression passed |
 
 Full video/audio transcription, full PDF text extraction, arbitrary local model execution, GitHub/MCP native feature parity and real runtime acceptance remain incomplete. Preview-based analysis is explicitly labelled; there are no simulated completions.
+
+### Beta 6 integration UI
+GitHubWorkspace uses the existing connectGithub, refreshGithub, disconnectGithub, listRepoItems and importRepository operations. McpWorkspace uses addMcpServer, refreshMcpServer, startMcpOAuth, setMcpToolState and callMcpTool with explicit permission/call dialogs; tokens are memory-only in input widgets and server-encrypted. Repository writes remain inside the existing agent/approval pipeline. These are callable implementation paths, not proof of real service acceptance. OAuth system-browser authorization is implemented; automatic Android App Links return is pending.

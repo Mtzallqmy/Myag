@@ -71,7 +71,9 @@ export const disableTelegram=defineOperation({method:'POST'}).inputValidator(raw
 export const disconnectTelegram=defineOperation({method:'POST'}).inputValidator(raw=>idSchema.parse(raw)).handler(async({data,context})=>{
  const bot=await owned(data.id,context.userId);if(!bot)return {ok:false,error:'NOT_FOUND'};
  try{
-  if(bot.status==='ENABLED')await telegramCall(await connection(bot),'deleteWebhook',{drop_pending_updates:false});
+  const token=await connection(bot);const info=await telegramCall(token,'getWebhookInfo');
+  const expected=new URL(`/api/public/telegram/${bot.id}`,process.env['PUBLIC_API_ORIGIN']??'http://localhost').toString();
+  if(info.url===expected)await telegramCall(token,'deleteWebhook',{drop_pending_updates:false});
   const r=await (await database()).from('telegram_bots').delete().eq('id',bot.id).eq('user_id',context.userId);if(r.error)throw Error('TELEGRAM_UNAVAILABLE');return {ok:true,data:null};
  }catch(e){return failure(e);}
 });

@@ -68,3 +68,12 @@ test('agent profiles expose the canonical bounded pipelines and current worker s
  assert.ok(data.roles.length>1);const ids=new Set(data.roles.map(r=>r.id));
  for(const pipeline of Object.values(data.pipelines)){assert.ok(pipeline.length<=10);assert.ok(pipeline.every(id=>ids.has(id)));}
 });
+
+test('integration operations stop at caller-scoped ownership before accessing server credentials',async t=>{
+ const calls=[];const q={select(){return this;},eq(){return this;},maybeSingle:async()=>({data:null,error:null})};
+ const a=await app(t,{authenticate:async()=>({...context,supabase:{from(table){calls.push(table);return q;}}})});
+ for(const [operation,payload] of [['disconnectGithub',{connectionId:context.userId}],['refreshMcpServer',{serverId:context.userId}],['callMcpTool',{toolId:context.userId,args:{},confirmed:true}]]){
+  const r=await a.inject({method:'POST',url:`/v1/operations/${operation}`,payload});assert.equal(r.statusCode,404);assert.equal(r.json().error,'NOT_FOUND');
+ }
+ assert.deepEqual(calls,['github_connections','mcp_servers','mcp_tools']);
+});
