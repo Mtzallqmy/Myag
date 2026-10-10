@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {PGlite} from '@electric-sql/pglite';
+import {reads} from '../dist/app.js';
 
 // Emulate only the Supabase system objects referenced by the application's SQL.
 // This checks the complete migration chain, not a substitute for live acceptance.
@@ -26,6 +27,12 @@ test('fresh schema migrations bootstrap users and isolate their conversations',a
   '../../../supabase/migrations/20261008032239_durable_agent_execution.sql',
   '../../../supabase/migrations/20261008223240_wakeel_private_archives_and_event_grants.sql',
  ]) await db.exec(await readFile(new URL(file,import.meta.url),'utf8'));
+ // Validate the actual HTTP projection against the complete database schema.
+ // Empty result sets must not hide nonexistent columns (e.g. GitHub account_login).
+ for(const [name,definition] of Object.entries(reads)) {
+  const columns=definition.columns.split(',').map(column=>column.includes(':')?column.split(':').reverse().join(' AS '):column).join(',');
+  await assert.doesNotReject(db.query(`SELECT ${columns} FROM public.${definition.table} ORDER BY ${definition.order} LIMIT 0`),name);
+ }
  const security=(await db.query(`SELECT count(*)::int AS tables,bool_and(relrowsecurity) AS all_rls
  FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
  WHERE n.nspname='public' AND c.relkind='r'`)).rows[0];

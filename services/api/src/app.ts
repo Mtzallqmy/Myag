@@ -16,7 +16,7 @@ import * as mcp from '@/lib/operations/mcp.server';
 import * as staff from '@/lib/operations/stage3.server';
 
 export const operations = {...providers,...projects,...agent,...github,...mcp,...staff};
-const reads: Record<string,{table:string;columns:string;order:string}> = {
+export const reads: Record<string,{table:string;columns:string;order:string}> = {
   conversations:{table:'conversations',columns:'*',order:'updated_at'},
   messages:{table:'messages',columns:'*',order:'created_at'},
   providers:{table:'ai_providers',columns:'id,name,provider_type,base_url,status,token_hint,created_at',order:'created_at'},
@@ -27,7 +27,7 @@ const reads: Record<string,{table:string;columns:string;order:string}> = {
   approvals:{table:'approvals',columns:'*',order:'created_at'},
   changes:{table:'change_sets',columns:'*',order:'created_at'},
   validations:{table:'validation_runs',columns:'*',order:'created_at'},
-  github:{table:'github_connections',columns:'id,github_login,status,created_at',order:'created_at'},
+  github:{table:'github_connections',columns:'id,github_login:account_login,status,created_at',order:'created_at'},
   repositories:{table:'github_repositories',columns:'*',order:'pushed_at'},
   mcp:{table:'mcp_servers',columns:'id,name,url,status,auth_type,created_at',order:'created_at'},
   tools:{table:'mcp_tools',columns:'*',order:'name'},
