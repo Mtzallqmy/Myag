@@ -12,11 +12,13 @@ import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
 import retrofit2.HttpException
+import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
 
 data class Rows(val data: List<JsonObject>, val offline: Boolean = false)
 data class ChatEvent(val kind: String, val data: JsonObject)
+data class LocalResult(val data: JsonElement, val offline: Boolean)
 class ApiFailure(val code: String): Exception(code)
 
 @Singleton
@@ -61,19 +63,43 @@ class WakeelRepository @Inject constructor(private val api: WakeelApi, private v
         }
         current.access_token
     }
-    suspend fun clear() { session = null; owner = ""; store.clear(); database.cache().clear() }
+    suspend fun clear() { session = null; owner = ""; store.clear(); database.cache().clear(); database.files().clear() }
     suspend fun logout() { try { api.post("v1/auth/logout", JsonObject(emptyMap()), "Bearer ${token()}") } finally { clear() } }
     suspend fun rows(collection: String, query: String = ""): Rows {
-        val bearer = token()
         val cacheKey = collection + query
         return try {
+            val bearer = token()
             val data = checked(api.get("v1/data/$collection$query", "Bearer $bearer")) as JsonArray
             database.cache().save(CachedRows(owner, cacheKey, data.toString()))
             Rows(data.map { it.jsonObject })
         } catch (e: Exception) {
-            if (e is HttpException || e is ApiFailure) throw e
+            if (e !is IOException || owner.isEmpty()) throw e
             val cached = database.cache().read(owner, cacheKey) ?: throw e
             Rows(json.parseToJsonElement(cached).jsonArray.map { it.jsonObject }, true)
+        }
+    }
+    suspend fun projectFile(projectId: String, path: String): LocalResult {
+        return try {
+            val data = operation("readFile", payload("projectId" to projectId, "path" to path)).jsonObject
+            val content = data.text("content").ifEmpty { data.text("text") }
+            if (content.length <= 600_000 && data["is_binary"]?.jsonPrimitive?.booleanOrNull != true) {
+                database.files().save(CachedFile(owner, projectId, path, content, System.currentTimeMillis()))
+                database.files().trim(owner, projectId)
+            }
+            LocalResult(data, false)
+        } catch (e: IOException) {
+            if (owner.isEmpty()) throw e
+            val file = database.files().read(owner, projectId, path) ?: throw ApiFailure("FILE_NOT_CACHED")
+            LocalResult(payload("path" to path, "content" to file.content), true)
+        }
+    }
+    suspend fun searchProject(body: JsonObject): LocalResult {
+        return try { LocalResult(operation("searchProject", body), false) } catch (e: IOException) {
+            if (owner.isEmpty()) throw e
+            val files = database.files().files(owner, body.text("projectId"))
+            if (files.isEmpty()) throw ApiFailure("PROJECT_NOT_CACHED")
+            val hits = withContext(Dispatchers.Default) { LocalSearch.find(files.map { it.path to it.content }, body.text("query")) }
+            LocalResult(buildJsonArray { hits.forEach { hit -> add(buildJsonObject { put("kind", hit.kind); put("path", hit.path); put("line", hit.line); put("preview", hit.preview) }) } }, true)
         }
     }
     suspend fun operation(name: String, body: JsonObject): JsonElement = checked(api.post("v1/operations/$name", body, "Bearer ${token()}"))

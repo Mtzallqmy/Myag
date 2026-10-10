@@ -2,6 +2,8 @@ package com.wakeel.app.data
 
 import android.content.Context
 import androidx.room.Room
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.wakeel.app.BuildConfig
 import dagger.Module
 import dagger.Provides
@@ -28,7 +30,12 @@ object NetworkModule {
     @Provides @Singleton fun client(): OkHttpClient = OkHttpClient.Builder().connectTimeout(20, TimeUnit.SECONDS).readTimeout(180, TimeUnit.SECONDS).callTimeout(0, TimeUnit.SECONDS).build()
     @Provides @Singleton fun api(client: OkHttpClient): WakeelApi = Retrofit.Builder().baseUrl(BuildConfig.API_ORIGIN).client(client)
         .addConverterFactory(Json { ignoreUnknownKeys = true }.asConverterFactory("application/json".toMediaType())).build().create(WakeelApi::class.java)
-    @Provides @Singleton fun database(@ApplicationContext context: Context): WakeelDatabase = Room.databaseBuilder(context, WakeelDatabase::class.java, "wakeel-cache.db").build()
+    @Provides @Singleton fun database(@ApplicationContext context: Context): WakeelDatabase = Room.databaseBuilder(context, WakeelDatabase::class.java, "wakeel-cache.db")
+        .addMigrations(object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS CachedFile (owner TEXT NOT NULL, projectId TEXT NOT NULL, path TEXT NOT NULL, content TEXT NOT NULL, savedAt INTEGER NOT NULL, PRIMARY KEY(owner, projectId, path))")
+            }
+        }).build()
 }
 fun JsonObject.text(key: String): String = (get(key) as? JsonPrimitive)?.contentOrNull.orEmpty()
 fun payload(vararg fields: Pair<String, String>): JsonObject = buildJsonObject { fields.forEach { (key, value) -> put(key, value) } }

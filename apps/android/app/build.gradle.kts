@@ -10,18 +10,20 @@ android {
     namespace = "com.wakeel.app"
     compileSdk = 36
     defaultConfig {
-        applicationId = "com.wakeel.app.beta"
+        // New install identity avoids update conflicts with ephemeral Beta 1/2 certificates.
+        applicationId = "com.wakeel.app.beta3"
         minSdk = 26
         targetSdk = 36
-        versionCode = 2
-        versionName = "0.1.0-beta.2"
+        versionCode = 3
+        versionName = "0.1.0-beta.3"
         ndk { abiFilters += "arm64-v8a" }
         buildConfigField("String", "API_ORIGIN", "\"https://wvcvrb.bot-keep.xyz/\"")
     }
     buildFeatures { compose = true; buildConfig = true }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
     kotlinOptions { jvmTarget = "17" }
-    // First tester beta uses the SDK test certificate, never a production signing key.
+    // Tester certificate only; stable production signing keys have not been provisioned.
+    signingConfigs.getByName("debug") { enableV1Signing = true; enableV2Signing = true }
     buildTypes { getByName("release") { isMinifyEnabled = false; signingConfig = signingConfigs.getByName("debug") } }
     packaging { resources.excludes += "/META-INF/{AL2.0,LGPL2.1}" }
 }

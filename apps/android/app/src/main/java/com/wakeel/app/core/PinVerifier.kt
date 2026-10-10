@@ -5,6 +5,7 @@ import javax.crypto.SecretKeyFactory
 import javax.crypto.spec.PBEKeySpec
 
 object PinVerifier {
+    fun normalize(input: String): String = input.mapNotNull { c -> Character.digit(c, 10).takeIf { it >= 0 }?.let { ('0'.code + it).toChar() } }.joinToString("").take(12)
     fun valid(pin: String) = pin.length in 6..12 && pin.all { it in '0'..'9' }
     fun derive(pin: String, salt: ByteArray): ByteArray {
         require(valid(pin))

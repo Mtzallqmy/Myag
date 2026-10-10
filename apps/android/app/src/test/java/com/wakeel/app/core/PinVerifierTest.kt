@@ -4,6 +4,11 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class PinVerifierTest {
+    @Test fun arabicDigitsNormalizeToTheSamePin() {
+        assertEquals("123456", PinVerifier.normalize("١٢٣٤٥٦"))
+        assertEquals("123456", PinVerifier.normalize("۱۲۳۴۵۶"))
+        assertEquals("123456", PinVerifier.normalize("123456"))
+    }
     @Test fun wrongPinAndDifferentSaltDoNotUnlock() {
         val salt = ByteArray(16) { it.toByte() }
         val expected = PinVerifier.derive("730192", salt)

@@ -88,6 +88,8 @@ private fun UiState.label(ar: String, en: String) = if (english) en else ar
         "PIN_FAILED" -> state.label("الرمز غير صحيح. بعد 5 محاولات انتظر 30 ثانية.", "Incorrect PIN. After 5 attempts, wait 30 seconds.")
         "SESSION_EXPIRED", "HTTP_401" -> state.label("انتهت الجلسة؛ سجّل الدخول مجددًا.", "Session expired. Sign in again.")
         "HTTP_429" -> state.label("طلبات كثيرة؛ انتظر قليلًا ثم أعد المحاولة.", "Too many requests. Wait, then retry.")
+        "FILE_NOT_CACHED" -> state.label("هذا الملف لم يُحفظ محليًا بعد. افتحه عند توفر الاتصال أولًا.", "This file is not cached. Open it online first.")
+        "PROJECT_NOT_CACHED" -> state.label("لا توجد ملفات محفوظة لهذا المشروع للبحث دون اتصال.", "No cached files are available for offline search.")
         else -> state.label("تعذّر الطلب: ", "Request failed: ") + code
     }, color = MaterialTheme.colorScheme.error) }
     state.notice?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
@@ -98,7 +100,7 @@ private fun UiState.label(ar: String, en: String) = if (english) en else ar
     Column(Modifier.safeDrawingPadding().imePadding().padding(28.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(20.dp)) {
         Text("وكيل", style = MaterialTheme.typography.headlineLarge)
         Text(state.label("فتح التطبيق بالرمز الداخلي", "Unlock with your app PIN"))
-        OutlinedTextField(pin, { pin = it.filter { c -> c in '0'..'9' }.take(12) }, label = { Text(state.label("الرمز الداخلي", "App PIN")) }, visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword), singleLine = true)
+        OutlinedTextField(pin, { pin = com.wakeel.app.core.PinVerifier.normalize(it) }, label = { Text(state.label("الرمز الداخلي", "App PIN")) }, visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword), singleLine = true)
         Button(onClick = { vm.unlock(pin); pin = "" }, enabled = !state.busy && pin.length >= 6) { Text(state.label("فتح", "Unlock")) }
         TextButton(onClick = { vm.resetLockedSession() }, enabled = !state.busy) { Text(state.label("نسيت الرمز؟ امسح الجلسة وسجّل الدخول", "Forgot PIN? Clear session and sign in")) }
         Status(state)
@@ -116,8 +118,8 @@ private fun UiState.label(ar: String, en: String) = if (english) en else ar
         AlertDialog(onDismissRequest = { action = null; value = ""; confirmation = "" }, title = { Text(state.label(if (pin) "رمز داخلي من 6 إلى 12 رقمًا" else "كلمة مرور الحساب", if (pin) "App PIN: 6–12 digits" else "Account password")) }, text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(state.label(if (pin) "يقفل هذا الهاتف عند مغادرة التطبيق. يظل الخادم محميًا بجلسة مشفّرة." else "اختر كلمة مرور جديدة من 8 أحرف على الأقل. لا تُحفظ في التطبيق.", if (pin) "Locks this device when you leave the app. The server session stays encrypted." else "Choose at least 8 characters. The password is not saved in the app."))
-                OutlinedTextField(value, { value = if (pin) it.filter { c -> c in '0'..'9' }.take(12) else it }, label = { Text(state.label("الرمز الجديد", "New secret")) }, visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = if (pin) KeyboardType.NumberPassword else KeyboardType.Password), singleLine = true)
-                OutlinedTextField(confirmation, { confirmation = if (pin) it.filter { c -> c in '0'..'9' }.take(12) else it }, label = { Text(state.label("تأكيد", "Confirm")) }, visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = if (pin) KeyboardType.NumberPassword else KeyboardType.Password), singleLine = true)
+                OutlinedTextField(value, { value = if (pin) com.wakeel.app.core.PinVerifier.normalize(it) else it }, label = { Text(state.label("الرمز الجديد", "New secret")) }, visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = if (pin) KeyboardType.NumberPassword else KeyboardType.Password), singleLine = true)
+                OutlinedTextField(confirmation, { confirmation = if (pin) com.wakeel.app.core.PinVerifier.normalize(it) else it }, label = { Text(state.label("تأكيد", "Confirm")) }, visualTransformation = PasswordVisualTransformation(), keyboardOptions = KeyboardOptions(keyboardType = if (pin) KeyboardType.NumberPassword else KeyboardType.Password), singleLine = true)
             }
         }, confirmButton = { TextButton(onClick = { if (pin) vm.setPin(value) else vm.changePassword(value); action = null; value = ""; confirmation = "" }, enabled = valid && !state.busy) { Text(state.label("حفظ", "Save")) } }, dismissButton = { TextButton(onClick = { action = null; value = ""; confirmation = "" }) { Text(state.label("إلغاء", "Cancel")) } })
     }
@@ -131,7 +133,7 @@ private fun UiState.label(ar: String, en: String) = if (english) en else ar
         Row(Modifier.statusBarsPadding().fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp), horizontalArrangement = Arrangement.SpaceBetween) {
             Text("وكيل", fontSize = 26.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
             if (route !in tabs.map { it.first }) TextButton(onClick = { vm.stop(); nav.popBackStack() }) { Text(state.label("رجوع", "Back")) }
-            else Text("BETA 2", color = MaterialTheme.colorScheme.secondary, fontSize = 12.sp)
+            else Text("BETA 3", color = MaterialTheme.colorScheme.secondary, fontSize = 12.sp)
         }
     }, bottomBar = {
         if (route != "chat") NavigationBar {
@@ -280,6 +282,7 @@ private fun UiState.label(ar: String, en: String) = if (english) en else ar
     var query by rememberSaveable { mutableStateOf("") }
     Column(Modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(state.label("مساحة المشروع", "Project workspace"), style = MaterialTheme.typography.titleLarge)
+        Text(state.label("الملفات التي تفتحها تُحفظ على الهاتف للقراءة والبحث دون اتصال. البحث المحلي يشمل الملفات المحفوظة فقط.", "Opened files are saved on this phone for offline reading and search. Local search covers cached files only."), style = MaterialTheme.typography.bodySmall)
         OutlinedTextField(query, { query = it }, label = { Text(state.label("بحث أو سؤال عن المشروع", "Search or ask project")) }, modifier = Modifier.fillMaxWidth())
         Row { Button(onClick = { vm.operation("searchProject", buildJsonObject { put("projectId", state.project); put("query", query); put("kinds", buildJsonArray { add("file"); add("text"); add("symbol") }) }) }, enabled = query.isNotBlank()) { Text(state.label("بحث", "Search")) }; TextButton(onClick = { vm.operation("askProject", payload("projectId" to state.project.orEmpty(), "question" to query)) }, enabled = query.length >= 2) { Text(state.label("اسأل المشروع", "Ask project")) } }
         Status(state)

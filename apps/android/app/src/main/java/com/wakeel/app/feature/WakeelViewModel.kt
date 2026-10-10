@@ -85,14 +85,15 @@ class WakeelViewModel @Inject constructor(private val repository: WakeelReposito
     }
     fun stop() { chatJob?.cancel(); mutable.update { it.copy(streaming = false) } }
     fun operation(name: String, body: JsonObject, reload: String? = null) = work {
-        val result = repository.operation(name, body)
-        mutable.update { it.copy(result = result.toString(), notice = "تم تنفيذ الطلب / Request completed") }
+        val result = if (name == "searchProject") repository.searchProject(body) else LocalResult(repository.operation(name, body), false)
+        mutable.update { it.copy(result = result.data.toString(), offline = result.offline, notice = if (result.offline) "بحث محلي في الملفات المحفوظة فقط / Local search in cached files only" else "تم تنفيذ الطلب / Request completed") }
         if (reload != null) { val data = repository.rows(reload); mutable.update { it.copy(rows = it.rows + (reload to data.data)) } }
     }
     fun openProject(id: String) { mutable.update { it.copy(project = id, result = "", file = "") }; load("files", "?projectId=$id") }
     fun readFile(path: String) = work {
-        val data = repository.operation("readFile", payload("projectId" to mutable.value.project.orEmpty(), "path" to path)).jsonObject
-        mutable.update { it.copy(file = data.text("text").ifEmpty { data.text("content") }) }
+        val result = repository.projectFile(mutable.value.project.orEmpty(), path)
+        val data = result.data.jsonObject
+        mutable.update { it.copy(file = data.text("text").ifEmpty { data.text("content") }, offline = result.offline) }
     }
     override fun onCleared() { chatJob?.cancel(); super.onCleared() }
 }

@@ -10,5 +10,14 @@ interface CacheDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun save(rows: CachedRows)
     @Query("DELETE FROM cached_rows") suspend fun clear()
 }
-@Database(entities = [CachedRows::class], version = 1, exportSchema = false)
-abstract class WakeelDatabase : RoomDatabase() { abstract fun cache(): CacheDao }
+@Entity(primaryKeys = ["owner", "projectId", "path"])
+data class CachedFile(val owner: String, val projectId: String, val path: String, val content: String, val savedAt: Long)
+@Dao interface FileCacheDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun save(file: CachedFile)
+    @Query("SELECT * FROM CachedFile WHERE owner = :owner AND projectId = :projectId AND path = :path LIMIT 1") suspend fun read(owner: String, projectId: String, path: String): CachedFile?
+    @Query("SELECT * FROM CachedFile WHERE owner = :owner AND projectId = :projectId ORDER BY savedAt DESC LIMIT 50") suspend fun files(owner: String, projectId: String): List<CachedFile>
+    @Query("DELETE FROM CachedFile WHERE owner = :owner AND projectId = :projectId AND path NOT IN (SELECT path FROM CachedFile WHERE owner = :owner AND projectId = :projectId ORDER BY savedAt DESC LIMIT 50)") suspend fun trim(owner: String, projectId: String)
+    @Query("DELETE FROM CachedFile") suspend fun clear()
+}
+@Database(entities = [CachedRows::class, CachedFile::class], version = 2, exportSchema = false)
+abstract class WakeelDatabase : RoomDatabase() { abstract fun cache(): CacheDao; abstract fun files(): FileCacheDao }

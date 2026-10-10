@@ -34,8 +34,12 @@ jobs:
         run: |
           mkdir -p beta-output
           APK=apps/android/app/build/outputs/apk/release/app-release.apk
-          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose "$APK"
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs "$APK" | tee beta-output/apk-signature.txt
+          grep 'Verified using v1 scheme (JAR signing): true' beta-output/apk-signature.txt
+          grep 'Verified using v2 scheme (APK Signature Scheme v2): true' beta-output/apk-signature.txt
           "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "$APK" > beta-output/apk-manifest.txt
+          grep "package: name='com.wakeel.app.beta3'" beta-output/apk-manifest.txt
+          "$ANDROID_HOME/build-tools/36.0.0/zipalign" -c -P 16 -v 4 "$APK"
           grep "sdkVersion:'26'" beta-output/apk-manifest.txt
           grep "targetSdkVersion:'36'" beta-output/apk-manifest.txt
           python - "$APK" <<'PY'
@@ -46,7 +50,7 @@ jobs:
               assert 'classes.dex' in apk.namelist()
               print('ARM64 compatible; native libraries:', libs)
           PY
-          cp "$APK" beta-output/wakeel-0.1.0-beta.2-arm64-compatible.apk
+          cp "$APK" beta-output/wakeel-0.1.0-beta.3-arm64-compatible.apk
           cd beta-output
           sha256sum *.apk > SHA256SUMS
       - uses: actions/upload-artifact@v4
@@ -61,9 +65,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          TAG=wakeel-android-v0.1.0-beta.2
+          TAG=wakeel-android-v0.1.0-beta.3
           if gh release view "$TAG" >/dev/null 2>&1; then
             echo 'Existing prerelease retained. New build is available as an Actions artifact.'
           else
-            gh release create "$TAG" beta-output/* --target "$GITHUB_SHA" --prerelease --title "وكيل Android 0.1.0 Beta 2" --notes-file apps/android/BETA_NOTES.md
+            gh release create "$TAG" beta-output/* --target "$GITHUB_SHA" --prerelease --title "وكيل Android 0.1.0 Beta 3" --notes-file apps/android/BETA_NOTES.md
           fi
